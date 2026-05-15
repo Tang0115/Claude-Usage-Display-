@@ -191,9 +191,35 @@
     letter-spacing: 2px;
     text-align: center;
   }
+
+  /* SCREENSAVER */
+  #screensaver {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 500;
+  }
+
+  #ss-logo {
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(217,119,87,0.7));
+    transition: filter 0.2s ease;
+  }
+
+  #ss-logo.alert {
+    filter: drop-shadow(0 0 14px rgba(255,60,60,1)) drop-shadow(0 0 32px rgba(255,60,60,0.7));
+  }
 </style>
 </head>
 <body>
+
+<div id="screensaver">
+  <img id="ss-logo" src="" alt="Claude">
+</div>
 
 <!-- LEFT -->
 <div class="left">
@@ -252,12 +278,90 @@
   const IMG_NORMAL = 'https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15';
   const IMG_ALERT  = 'https://storage.googleapis.com/sm-artworks/be75b541-e429-4b61-a058-6a04bc35f712/proof_retina_3x.png?cacheFor=ffd712cab85177f32f96b3056e9b2d5c';
 
+  // Preload both images so screensaver has them cached
+  [IMG_NORMAL, IMG_ALERT].forEach(src => { const i = new Image(); i.src = src; });
+
   function updateLogo(isAlert) {
     const el = document.getElementById('logo');
     const targetSrc = isAlert ? IMG_ALERT : IMG_NORMAL;
     if (el.src !== targetSrc) el.src = targetSrc;
     el.classList.toggle('alert', isAlert);
   }
+
+  // ── Screensaver ──────────────────────────────────────────
+  const SS_W = 1024, SS_H = 600, SS_SIZE = 160;
+  const STALE_THRESHOLD = 10; // polls before screensaver triggers (~10 minutes)
+
+  let ssActive = false, ssRaf = null;
+  let ssX = 0, ssY = 0, ssDx = 2, ssDy = 1.6;
+  let staleCount = 0, prevSession = null, prevWeekly = null;
+  let ssRevertTimer = null;
+
+  function ssFlashEdge() {
+    const img = document.getElementById('ss-logo');
+    if (ssRevertTimer) {
+      clearTimeout(ssRevertTimer);
+    } else {
+      img.src = IMG_ALERT;
+      img.className = 'alert';
+    }
+    ssRevertTimer = setTimeout(() => {
+      img.src = IMG_NORMAL;
+      img.className = '';
+      ssRevertTimer = null;
+    }, 1000);
+  }
+
+  function ssLoop() {
+    ssX += ssDx;
+    ssY += ssDy;
+    let hit = false;
+    if (ssX <= 0)              { ssX = 0;               ssDx =  Math.abs(ssDx); hit = true; }
+    if (ssX >= SS_W - SS_SIZE) { ssX = SS_W - SS_SIZE;  ssDx = -Math.abs(ssDx); hit = true; }
+    if (ssY <= 0)              { ssY = 0;               ssDy =  Math.abs(ssDy); hit = true; }
+    if (ssY >= SS_H - SS_SIZE) { ssY = SS_H - SS_SIZE;  ssDy = -Math.abs(ssDy); hit = true; }
+    if (hit) ssFlashEdge();
+    const img = document.getElementById('ss-logo');
+    img.style.left = ssX + 'px';
+    img.style.top  = ssY + 'px';
+    ssRaf = requestAnimationFrame(ssLoop);
+  }
+
+  function startScreensaver(isAlert) {
+    ssActive = true;
+    ssX = Math.random() * (SS_W - SS_SIZE);
+    ssY = Math.random() * (SS_H - SS_SIZE);
+    ssDx = (Math.random() > 0.5 ? 1 : -1) * (0.7 + Math.random() * 0.4);
+    ssDy = (Math.random() > 0.5 ? 1 : -1) * (0.7 + Math.random() * 0.4);
+    const img = document.getElementById('ss-logo');
+    img.src = IMG_NORMAL;
+    img.className = '';
+    document.getElementById('screensaver').style.display = 'block';
+    ssRaf = requestAnimationFrame(ssLoop);
+  }
+
+  function stopScreensaver() {
+    ssActive = false;
+    document.getElementById('screensaver').style.display = 'none';
+    if (ssRaf) { cancelAnimationFrame(ssRaf); ssRaf = null; }
+    if (ssRevertTimer) { clearTimeout(ssRevertTimer); ssRevertTimer = null; }
+  }
+
+  function checkStale(session, weekly) {
+    const isAlert = session >= 80 || weekly >= 80;
+    if (prevSession === null) {
+      // first load — just record, don't count
+    } else if (session === prevSession && weekly === prevWeekly) {
+      staleCount++;
+      if (staleCount >= STALE_THRESHOLD && !ssActive) startScreensaver(isAlert);
+    } else {
+      staleCount = 0;
+      if (ssActive) stopScreensaver();
+    }
+    prevSession = session;
+    prevWeekly  = weekly;
+  }
+  // ─────────────────────────────────────────────────────────
 
   // Countdown with seconds
   let sessionSecs = 0, weeklySecs = 0, lastFetch = 0;
@@ -310,6 +414,7 @@
       setLevel(wv, wb, d.weekly);
 
       updateLogo(d.session >= 80 || d.weekly >= 80);
+      checkStale(d.session, d.weekly);
 
       document.getElementById('last-update').textContent =
         'Synced ' + new Date().toLocaleTimeString('en-US', { hour12: true }) + ' · refreshes every 60s';
