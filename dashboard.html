@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Clawd Dash</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #111827;
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    width: 1024px;
+    height: 600px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+  }
+
+  /* LEFT */
+  .left {
+    background: #0d1117;
+    border-right: 1px solid #1f2937;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .logo-img {
+    width: 140px;
+    height: 140px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(217,119,87,0.5));
+    animation: bounce 2s ease-in-out infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-14px); }
+  }
+
+  .mascot-label {
+    font-size: 1em;
+    letter-spacing: 5px;
+    color: #D97757;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .live {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85em;
+    letter-spacing: 3px;
+    color: #6b7280;
+  }
+
+  .live-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #D97757;
+    box-shadow: 0 0 8px #D97757;
+    animation: liveblink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes liveblink {
+    0%,100% { opacity:1; } 50% { opacity:0.2; }
+  }
+
+  /* RIGHT */
+  .right {
+    display: flex;
+    flex-direction: column;
+    padding: 24px 32px;
+    gap: 16px;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1f2937;
+    padding-bottom: 14px;
+  }
+
+  .top-title {
+    font-size: 1.3em;
+    font-weight: 800;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #f9fafb;
+  }
+
+  .top-time {
+    font-size: 1.1em;
+    color: #9ca3af;
+    letter-spacing: 2px;
+    font-weight: 700;
+  }
+
+  /* Cards */
+  .card {
+    flex: 1;
+    background: #1a2235;
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    padding: 18px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .card-label {
+    font-size: 0.85em;
+    letter-spacing: 3px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .card-pct {
+    font-size: 4.8em;
+    font-weight: 800;
+    line-height: 1;
+    color: #D97757;
+    transition: color 0.5s;
+  }
+
+  .card-pct.warn   { color: #f0c070; }
+  .card-pct.danger { color: #f06060; }
+
+  .countdown-box { text-align: right; }
+
+  .countdown {
+    font-size: 2em;
+    font-weight: 700;
+    color: #f9fafb;
+    letter-spacing: 2px;
+  }
+
+  .countdown-label {
+    font-size: 0.75em;
+    letter-spacing: 3px;
+    color: #6b7280;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .bar-track {
+    height: 14px;
+    background: #111827;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid #1f2937;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 7px;
+    background: #D97757;
+    width: 0%;
+    transition: width 1.5s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 0 10px rgba(217,119,87,0.5);
+  }
+
+  .bar-fill.warn   { background: #f0c070; box-shadow: 0 0 10px rgba(240,192,112,0.5); }
+  .bar-fill.danger { background: #f06060; box-shadow: 0 0 10px rgba(240,96,96,0.5); }
+
+  .footer {
+    font-size: 0.75em;
+    color: #374151;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- LEFT -->
+<div class="left">
+  <img class="logo-img" src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAwADADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAACAAHBgQF/8QALBAAAAMGBQIGAwAAAAAAAAAAAQIFAAMEBxITBhEUITEXMhUWI1ak0iJBcf/EABgBAQEAAwAAAAAAAAAAAAAAAAUEAgMG/8QALBEAAQQBAQYEBwEAAAAAAAAAAQIDBBEAQRIhUWGh0QUTFXEUFjFSkbHwwf/aAAwDAQACEQMRAD8AGTTdZKJITl6YaWlKsPqIN/duO6zEqpcnMG5RAQ3AB5ZBdIpee3vmP/u0cic3HVsqBxSF4S9MbLjZAANb77YUWmV3SKXnt75j/wC7XSKXnt75j/7tP6szwPTvlfy5K+5P5PbCi0yu6RS89vfMf/dj7N1ITkGYaolJUPp4Nxatu6zHpqckMO5hER3ER5aiPObkK2Ug5JN8Kehthxwggmt19s7qUUucZIMw0tVVUfTwbi7cealyempycobFOIjuIBw2gzRw4srWL8FR6ZB34ZMUBfRh7pC2yXHI55GEBHYhuM+G+TgGcfmrFsEg+XNHqrnra25TS7MftthnnTlz+21dhpLz6HgtwAGum/nnTQYsRyMpthRKbu9bFHgOA0yaaaY/Gcz6V2HFlFxfjWPU4OxDKagD6DPdIa4S4+HPIoiIbHLzly2fTdlzjJemGqKqUj6iDf2rbzUuSVUuSFHYxwENwEOGQTZRj6cflXFsag+XNZpbfra23VU7KfttjllVlz+mQjPPqeK2wCa6bueDT4sRuMlt9RCbu9bNngeJ0w+oCuooKs4VUqI08Y4qtvKCnpqKJR2MAgOwiHDIJfxdiKF6YWFCjxyx4j6Lsb9Wnz5L+Pefty5/jG5pnH4yXlBR05f3vnJxJ7kZCkpvfWtVRH7ArNmm7MbGSDMNUSkpY08G4tW3emcnpqckMO5iCI7iI8tSimNjJemGlpSqsaiDf3bjvTOSVUuTmDcpAENwAeWxlpsPgmvK2KF1V11zZ6o/5/m7Rq7qzVXdf59MSKBi7EUV1PvqFfgd/wAO9F2FinUZcF/LsJ3Z8f1j6vq6ivKz9VVYjURj+m48oKSqkoFDYoAAbAAcN4GmzYjJZUVDXl/e+a5c9yShKVXuvW7sn9A1n//Z" alt="Claude">
+  <div class="mascot-label">Claude Code</div>
+  <div class="live"><div class="live-dot"></div>LIVE</div>
+</div>
+
+<!-- RIGHT -->
+<div class="right">
+  <div class="top-bar">
+    <div class="top-title">Usage Monitor</div>
+    <div class="top-time" id="clock">--</div>
+  </div>
+
+  <div class="card">
+    <div class="card-top">
+      <div>
+        <div class="card-label">Session Usage · 5h window</div>
+        <div class="card-pct" id="session-val">--</div>
+      </div>
+      <div class="countdown-box">
+        <div class="countdown" id="session-cd">--</div>
+        <div class="countdown-label">until reset</div>
+      </div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="session-bar"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-top">
+      <div>
+        <div class="card-label">Weekly Usage · 7d window</div>
+        <div class="card-pct" id="weekly-val">--</div>
+      </div>
+      <div class="countdown-box">
+        <div class="countdown" id="weekly-cd">--</div>
+        <div class="countdown-label">until reset</div>
+      </div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="weekly-bar"></div></div>
+  </div>
+
+  <div class="footer" id="last-update">Waiting for data...</div>
+</div>
+
+<script>
+  // 12h clock with seconds
+  function updateClock() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Countdown with seconds
+  let sessionSecs = 0, weeklySecs = 0, lastFetch = 0;
+
+  function formatCountdown(total) {
+    if (total <= 0) return 'NOW';
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    if (h >= 24) {
+      const d = Math.floor(h / 24);
+      const rh = h % 24;
+      return `${d}d ${rh}h ${String(m).padStart(2,'0')}m`;
+    }
+    return `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+  }
+
+  setInterval(() => {
+    const elapsed = Math.floor((Date.now() - lastFetch) / 1000);
+    document.getElementById('session-cd').textContent = formatCountdown(Math.max(0, sessionSecs - elapsed));
+    document.getElementById('weekly-cd').textContent  = formatCountdown(Math.max(0, weeklySecs  - elapsed));
+  }, 1000);
+
+  function setLevel(valEl, barEl, pct) {
+    const cls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '';
+    valEl.className = 'card-pct' + (cls ? ' ' + cls : '');
+    barEl.className = 'bar-fill' + (cls ? ' ' + cls : '');
+  }
+
+  async function update() {
+    try {
+      const res = await fetch('/usage.json?t=' + Date.now());
+      const d   = await res.json();
+
+      sessionSecs = d.session_reset_mins * 60;
+      weeklySecs  = d.weekly_reset_mins  * 60;
+      lastFetch   = Date.now();
+
+      const sv = document.getElementById('session-val');
+      const sb = document.getElementById('session-bar');
+      const wv = document.getElementById('weekly-val');
+      const wb = document.getElementById('weekly-bar');
+
+      sv.textContent = d.session.toFixed(1) + '%';
+      wv.textContent = d.weekly.toFixed(1)  + '%';
+      sb.style.width = Math.min(d.session, 100) + '%';
+      wb.style.width = Math.min(d.weekly,  100) + '%';
+
+      setLevel(sv, sb, d.session);
+      setLevel(wv, wb, d.weekly);
+
+      document.getElementById('last-update').textContent =
+        'Synced ' + new Date().toLocaleTimeString('en-US', { hour12: true }) + ' · refreshes every 60s';
+    } catch(e) {
+      document.getElementById('last-update').textContent = 'Connection error — retrying...';
+    }
+  }
+
+  update();
+  setInterval(update, 60000);
+</script>
+</body>
+</html>
