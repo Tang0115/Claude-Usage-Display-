@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 CREDENTIALS_PATH = '/home/tang0115/.claude/.credentials.json'
 USAGE_PATH       = '/home/tang0115/clawd-dash/usage.json'
-OAUTH_REFRESH_URL = 'https://claude.ai/api/auth/oauth/token'
+OAUTH_REFRESH_URL = 'https://auth.anthropic.com/oauth/token'
 EXPIRY_BUFFER_SECS = 300  # refresh 5 min before actual expiry
 
 def load_creds():
@@ -27,7 +27,8 @@ def refresh_token(creds):
         OAUTH_REFRESH_URL,
         json={
             'grant_type': 'refresh_token',
-            'refresh_token': creds['claudeAiOauth']['refreshToken']
+            'refresh_token': creds['claudeAiOauth']['refreshToken'],
+            'client_id': '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
         }
     )
     resp.raise_for_status()
