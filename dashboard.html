@@ -30,14 +30,20 @@
     justify-content: center;
     gap: 20px;
     padding: 20px;
+    overflow: hidden;
   }
 
   .logo-img {
     width: 140px;
     height: 140px;
     object-fit: contain;
-    filter: drop-shadow(0 0 20px rgba(217,119,87,0.5));
+    filter: drop-shadow(0 0 20px rgba(217,119,87,0.6));
     animation: bounce 2s ease-in-out infinite;
+    transition: filter 1s ease;
+  }
+
+  .logo-img.alert {
+    filter: drop-shadow(0 0 14px rgba(255,60,60,1)) drop-shadow(0 0 32px rgba(255,60,60,0.7));
   }
 
   @keyframes bounce {
@@ -191,7 +197,7 @@
 
 <!-- LEFT -->
 <div class="left">
-  <img class="logo-img" src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAwADADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAACAAHBgQF/8QALBAAAAMGBQIGAwAAAAAAAAAAAQIFAAMEBxITBhEUITEXMhUWI1ak0iJBcf/EABgBAQEAAwAAAAAAAAAAAAAAAAUEAgMG/8QALBEAAQQBAQYEBwEAAAAAAAAAAQIDBBEAQRIhUWGh0QUTFXEUFjFSkbHwwf/aAAwDAQACEQMRAD8AGTTdZKJITl6YaWlKsPqIN/duO6zEqpcnMG5RAQ3AB5ZBdIpee3vmP/u0cic3HVsqBxSF4S9MbLjZAANb77YUWmV3SKXnt75j/wC7XSKXnt75j/7tP6szwPTvlfy5K+5P5PbCi0yu6RS89vfMf/dj7N1ITkGYaolJUPp4Nxatu6zHpqckMO5hER3ER5aiPObkK2Ug5JN8Kehthxwggmt19s7qUUucZIMw0tVVUfTwbi7cealyempycobFOIjuIBw2gzRw4srWL8FR6ZB34ZMUBfRh7pC2yXHI55GEBHYhuM+G+TgGcfmrFsEg+XNHqrnra25TS7MftthnnTlz+21dhpLz6HgtwAGum/nnTQYsRyMpthRKbu9bFHgOA0yaaaY/Gcz6V2HFlFxfjWPU4OxDKagD6DPdIa4S4+HPIoiIbHLzly2fTdlzjJemGqKqUj6iDf2rbzUuSVUuSFHYxwENwEOGQTZRj6cflXFsag+XNZpbfra23VU7KfttjllVlz+mQjPPqeK2wCa6bueDT4sRuMlt9RCbu9bNngeJ0w+oCuooKs4VUqI08Y4qtvKCnpqKJR2MAgOwiHDIJfxdiKF6YWFCjxyx4j6Lsb9Wnz5L+Pefty5/jG5pnH4yXlBR05f3vnJxJ7kZCkpvfWtVRH7ArNmm7MbGSDMNUSkpY08G4tW3emcnpqckMO5iCI7iI8tSimNjJemGlpSqsaiDf3bjvTOSVUuTmDcpAENwAeWxlpsPgmvK2KF1V11zZ6o/5/m7Rq7qzVXdf59MSKBi7EUV1PvqFfgd/wAO9F2FinUZcF/LsJ3Z8f1j6vq6ivKz9VVYjURj+m48oKSqkoFDYoAAbAAcN4GmzYjJZUVDXl/e+a5c9yShKVXuvW7sn9A1n//Z" alt="Claude">
+  <img id="logo" class="logo-img" src="https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15" alt="Claude">
   <div class="mascot-label">Claude Code</div>
   <div class="live"><div class="live-dot"></div>LIVE</div>
 </div>
@@ -243,6 +249,16 @@
   updateClock();
   setInterval(updateClock, 1000);
 
+  const IMG_NORMAL = 'https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15';
+  const IMG_ALERT  = 'https://storage.googleapis.com/sm-artworks/be75b541-e429-4b61-a058-6a04bc35f712/proof_retina_3x.png?cacheFor=ffd712cab85177f32f96b3056e9b2d5c';
+
+  function updateLogo(isAlert) {
+    const el = document.getElementById('logo');
+    const targetSrc = isAlert ? IMG_ALERT : IMG_NORMAL;
+    if (el.src !== targetSrc) el.src = targetSrc;
+    el.classList.toggle('alert', isAlert);
+  }
+
   // Countdown with seconds
   let sessionSecs = 0, weeklySecs = 0, lastFetch = 0;
 
@@ -292,6 +308,8 @@
 
       setLevel(sv, sb, d.session);
       setLevel(wv, wb, d.weekly);
+
+      updateLogo(d.session >= 80 || d.weekly >= 80);
 
       document.getElementById('last-update').textContent =
         'Synced ' + new Date().toLocaleTimeString('en-US', { hour12: true }) + ' · refreshes every 60s';
