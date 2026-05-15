@@ -90,6 +90,17 @@
     background: #D97757;
     box-shadow: 0 0 8px #D97757;
     animation: liveblink 1.5s ease-in-out infinite;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .live.error .live-dot {
+    background: #f06060;
+    box-shadow: 0 0 8px #f06060;
+  }
+
+  .live.syncing .live-dot {
+    background: #6b7280;
+    box-shadow: 0 0 8px #6b7280;
   }
 
   @keyframes liveblink {
@@ -241,7 +252,7 @@
 <div class="left">
   <img id="logo" class="logo-img" src="https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15" alt="Claude">
   <div class="mascot-label">Claude</div>
-  <div class="live"><div class="live-dot"></div>LIVE</div>
+  <div class="live" id="live-status"><div class="live-dot"></div><span id="live-label">SYNCING</span></div>
   <div id="reset-soon">Resetting soon</div>
 </div>
 
@@ -463,8 +474,14 @@
 
       document.getElementById('last-update').textContent =
         'Synced ' + new Date().toLocaleTimeString('en-US', { hour12: true }) + ' · refreshes every 60s';
+      const ls = document.getElementById('live-status');
+      ls.className = 'live';
+      document.getElementById('live-label').textContent = 'LIVE';
     } catch(e) {
       document.getElementById('last-update').textContent = 'Connection error — retrying...';
+      const ls = document.getElementById('live-status');
+      ls.className = 'live error';
+      document.getElementById('live-label').textContent = 'ERROR';
     }
   }
 
