@@ -471,8 +471,17 @@
   update();
   setInterval(update, 60000);
 
-  // Reload page every 5 minutes to pick up any updates
-  setInterval(() => location.reload(), 5 * 60 * 1000);
+  // Reload only if the file has actually changed on disk (picks up GitHub auto-pulls)
+  let pageVersion = null;
+  async function checkForUpdate() {
+    try {
+      const res = await fetch('/dashboard.html', { method: 'HEAD', cache: 'no-store' });
+      const ver = res.headers.get('last-modified') || res.headers.get('etag');
+      if (pageVersion === null) { pageVersion = ver; return; }
+      if (ver && ver !== pageVersion) location.reload();
+    } catch(e) {}
+  }
+  setInterval(checkForUpdate, 5 * 60 * 1000);
 </script>
 </body>
 </html>
