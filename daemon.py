@@ -92,7 +92,15 @@ def get_usage(creds):
 
 
 creds = load_creds()
-creds = ensure_fresh(creds)
+
+while True:
+    try:
+        creds = ensure_fresh(creds)
+        print("Startup token check passed.")
+        break
+    except Exception as e:
+        print(f"Startup retry (network not ready?): {e}")
+        time.sleep(10)
 
 while True:
     try:
