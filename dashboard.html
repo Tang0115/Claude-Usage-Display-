@@ -57,13 +57,14 @@
   }
 
   #reset-soon {
-    display: none;
     font-size: 0.7em;
     letter-spacing: 3px;
     color: #6ee7b7;
     text-transform: uppercase;
     text-align: center;
     font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.5s ease;
   }
 
   .mascot-label {
@@ -293,7 +294,7 @@
 
   const IMG_NORMAL    = 'https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15';
   const IMG_ALERT     = 'https://storage.googleapis.com/sm-artworks/be75b541-e429-4b61-a058-6a04bc35f712/proof_retina_3x.png?cacheFor=ffd712cab85177f32f96b3056e9b2d5c';
-  const IMG_CELEBRATE = 'https://cdn.stickermule.com/artworks/297554b5-c858-4e1d-8c96-86eb18496131/large.png?cacheFor=c8390bc87ddaa9022843c54cd1690003';
+  const IMG_CELEBRATE = 'https://cdn.stickermule.com/artworks/d3c8ea82-59f0-4606-97fa-88acd0bf21a0/large.png?cacheFor=8db00d69ee7e53baa5a50b27b9c50bba';
 
   // Preload all images
   [IMG_NORMAL, IMG_ALERT, IMG_CELEBRATE].forEach(src => { const i = new Image(); i.src = src; });
@@ -315,12 +316,12 @@
     const el = document.getElementById('logo');
     el.src = IMG_CELEBRATE;
     el.className = 'logo-img';
-    document.getElementById('reset-soon').style.display = 'block';
+    document.getElementById('reset-soon').style.opacity = '1';
   }
 
   function endCelebration() {
     celebrationActive = false;
-    document.getElementById('reset-soon').style.display = 'none';
+    document.getElementById('reset-soon').style.opacity = '0';
     const el = document.getElementById('logo');
     el.src = lastIsAlert ? IMG_ALERT : IMG_NORMAL;
     el.classList.toggle('alert', lastIsAlert);
