@@ -43,12 +43,27 @@
   }
 
   .logo-img.alert {
-    filter: drop-shadow(0 0 14px rgba(255,60,60,1)) drop-shadow(0 0 32px rgba(255,60,60,0.7));
+    animation: bounce 2s ease-in-out infinite, heartbeat-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes heartbeat-glow {
+    0%, 100% { filter: drop-shadow(0 0 14px rgba(255,60,60,1)) drop-shadow(0 0 32px rgba(255,60,60,0.7)); }
+    50%       { filter: drop-shadow(0 0 5px rgba(255,60,60,0.4)) drop-shadow(0 0 12px rgba(255,60,60,0.2)); }
   }
 
   @keyframes bounce {
     0%, 100% { transform: translateY(0px); }
     50%       { transform: translateY(-14px); }
+  }
+
+  #reset-soon {
+    display: none;
+    font-size: 0.7em;
+    letter-spacing: 3px;
+    color: #6ee7b7;
+    text-transform: uppercase;
+    text-align: center;
+    font-weight: 700;
   }
 
   .mascot-label {
@@ -224,8 +239,9 @@
 <!-- LEFT -->
 <div class="left">
   <img id="logo" class="logo-img" src="https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15" alt="Claude">
-  <div class="mascot-label">Claude Code</div>
+  <div class="mascot-label">Claude</div>
   <div class="live"><div class="live-dot"></div>LIVE</div>
+  <div id="reset-soon">Resetting soon</div>
 </div>
 
 <!-- RIGHT -->
@@ -275,17 +291,39 @@
   updateClock();
   setInterval(updateClock, 1000);
 
-  const IMG_NORMAL = 'https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15';
-  const IMG_ALERT  = 'https://storage.googleapis.com/sm-artworks/be75b541-e429-4b61-a058-6a04bc35f712/proof_retina_3x.png?cacheFor=ffd712cab85177f32f96b3056e9b2d5c';
+  const IMG_NORMAL    = 'https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15';
+  const IMG_ALERT     = 'https://storage.googleapis.com/sm-artworks/be75b541-e429-4b61-a058-6a04bc35f712/proof_retina_3x.png?cacheFor=ffd712cab85177f32f96b3056e9b2d5c';
+  const IMG_CELEBRATE = 'https://cdn.stickermule.com/artworks/297554b5-c858-4e1d-8c96-86eb18496131/large.png?cacheFor=c8390bc87ddaa9022843c54cd1690003';
 
-  // Preload both images so screensaver has them cached
-  [IMG_NORMAL, IMG_ALERT].forEach(src => { const i = new Image(); i.src = src; });
+  // Preload all images
+  [IMG_NORMAL, IMG_ALERT, IMG_CELEBRATE].forEach(src => { const i = new Image(); i.src = src; });
+
+  let lastIsAlert = false;
+  let celebrationActive = false;
 
   function updateLogo(isAlert) {
+    lastIsAlert = isAlert;
+    if (celebrationActive) return;
     const el = document.getElementById('logo');
     const targetSrc = isAlert ? IMG_ALERT : IMG_NORMAL;
     if (el.src !== targetSrc) el.src = targetSrc;
     el.classList.toggle('alert', isAlert);
+  }
+
+  function startCelebration() {
+    celebrationActive = true;
+    const el = document.getElementById('logo');
+    el.src = IMG_CELEBRATE;
+    el.className = 'logo-img';
+    document.getElementById('reset-soon').style.display = 'block';
+  }
+
+  function endCelebration() {
+    celebrationActive = false;
+    document.getElementById('reset-soon').style.display = 'none';
+    const el = document.getElementById('logo');
+    el.src = lastIsAlert ? IMG_ALERT : IMG_NORMAL;
+    el.classList.toggle('alert', lastIsAlert);
   }
 
   // ── Screensaver ──────────────────────────────────────────
@@ -381,8 +419,14 @@
 
   setInterval(() => {
     const elapsed = Math.floor((Date.now() - lastFetch) / 1000);
-    document.getElementById('session-cd').textContent = formatCountdown(Math.max(0, sessionSecs - elapsed));
-    document.getElementById('weekly-cd').textContent  = formatCountdown(Math.max(0, weeklySecs  - elapsed));
+    const sessionLeft = Math.max(0, sessionSecs - elapsed);
+    const weeklyLeft  = Math.max(0, weeklySecs  - elapsed);
+    document.getElementById('session-cd').textContent = formatCountdown(sessionLeft);
+    document.getElementById('weekly-cd').textContent  = formatCountdown(weeklyLeft);
+
+    const shouldCelebrate = sessionSecs > 0 && sessionLeft > 0 && sessionLeft < 300;
+    if (shouldCelebrate && !celebrationActive) startCelebration();
+    if (!shouldCelebrate && celebrationActive) endCelebration();
   }, 1000);
 
   function setLevel(valEl, barEl, pct) {
