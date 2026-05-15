@@ -72,7 +72,7 @@ The dashboard will launch automatically on every boot.
 
 ## How it works
 
-- `daemon.py` — polls the Anthropic API every 60 seconds using your OAuth token and writes usage data to `usage.json`
+- `daemon.py` — polls the Anthropic API every 60 seconds using your OAuth token and writes usage data to `usage.json`. Automatically refreshes the access token when it expires (or 5 minutes before) using the refresh token from `~/.claude/.credentials.json` — no manual intervention needed
 - `server.py` — serves the dashboard files over a local HTTP server on port 8080
 - `dashboard.html` — the frontend that reads `usage.json` and displays usage with animated progress bars and countdown timers
 
