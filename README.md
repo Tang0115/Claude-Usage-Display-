@@ -9,8 +9,9 @@ A Raspberry Pi desk dashboard that shows your Claude Code usage in real time —
 - Shows your 7-day weekly usage %
 - Countdown timers to each reset
 - Color-coded warnings as you approach limits (yellow at 70%, red at 90%)
-- Animated Claude logo with red ambient glow when usage hits 80%+ — logo also swaps to an alert image
-- DVD-style screensaver after 10 minutes of no usage change — bounces wall-to-wall and wakes automatically when usage updates
+- Animated Claude logo with pulsing red heartbeat glow when usage hits 80%+ — logo also swaps to an alert image
+- "Resetting soon" celebration mode when session reset is under 5 minutes — swaps to a celebration image then reverts automatically
+- DVD-style screensaver after 10 minutes of no usage change — bounces wall-to-wall, alternates images on each wall hit, wakes automatically when usage updates
 - Auto-refreshes every 60 seconds
 - Launches automatically on boot
 
