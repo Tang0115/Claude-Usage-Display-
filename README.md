@@ -2,7 +2,6 @@
 
 A Raspberry Pi desk dashboard that shows your Claude Code usage in real time — session and weekly limits with live countdowns.
 
-![Dashboard](https://raw.githubusercontent.com/Tang0115/Claude-Usage-Display-/main/screenshots/dashboard.png)
 
 ## What it does
 
