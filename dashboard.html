@@ -301,8 +301,8 @@
       const wv = document.getElementById('weekly-val');
       const wb = document.getElementById('weekly-bar');
 
-      sv.textContent = d.session.toFixed(1) + '%';
-      wv.textContent = d.weekly.toFixed(1)  + '%';
+      sv.textContent = Math.round(d.session) + '%';
+      wv.textContent = Math.round(d.weekly)  + '%';
       sb.style.width = Math.min(d.session, 100) + '%';
       wb.style.width = Math.min(d.weekly,  100) + '%';
 
