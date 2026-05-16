@@ -12,6 +12,7 @@ A Raspberry Pi desk dashboard that shows your Claude Code usage in real time —
 - Animated Claude logo with pulsing red heartbeat glow when usage hits 80%+ — logo also swaps to an alert image
 - "Resetting soon" celebration mode when session reset is under 5 minutes — swaps to a celebration image then reverts automatically
 - DVD-style screensaver after 10 minutes of no usage change — bounces wall-to-wall, alternates images on each wall hit, wakes automatically when usage updates
+- Live status indicator shows LIVE / SYNCING / ERROR based on connection state
 - Auto-refreshes every 60 seconds
 - Launches automatically on boot
 
@@ -72,7 +73,7 @@ The dashboard will launch automatically on every boot.
 
 ## How it works
 
-- `daemon.py` — polls the Anthropic API every 60 seconds using your OAuth token and writes usage data to `usage.json`. Automatically refreshes the access token when it expires (or 5 minutes before) using the refresh token from `~/.claude/.credentials.json` — no manual intervention needed
+- `daemon.py` — polls the Anthropic API every 60 seconds using your OAuth token and writes usage data to `usage.json`. Automatically refreshes the access token when it expires (or 5 minutes before) using the refresh token from `~/.claude/.credentials.json` — no manual intervention needed. On boot, retries the initial token check until the network is available
 - `server.py` — serves the dashboard files over a local HTTP server on port 8080
 - `dashboard.html` — the frontend that reads `usage.json` and displays usage with animated progress bars and countdown timers
 
