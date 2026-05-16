@@ -473,7 +473,7 @@
       checkStale(d.session, d.weekly);
 
       document.getElementById('last-update').textContent =
-        'Synced ' + new Date().toLocaleTimeString('en-US', { hour12: true }) + ' · refreshes every 60s';
+        'Synced ' + new Date().toLocaleTimeString('en-US', { hour12: true }) + ' · refreshes every 30s';
       const ls = document.getElementById('live-status');
       ls.className = 'live';
       document.getElementById('live-label').textContent = 'LIVE';
@@ -486,7 +486,7 @@
   }
 
   update();
-  setInterval(update, 60000);
+  setInterval(update, 30000);
 
   // Reload only if the file has actually changed on disk (picks up GitHub auto-pulls)
   let pageVersion = null;
