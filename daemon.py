@@ -2,6 +2,7 @@ import json
 import requests
 import time
 from datetime import datetime, timezone
+import psutil
 
 CREDENTIALS_PATH = '/home/tang0115/.claude/.credentials.json'
 USAGE_PATH       = '/home/tang0115/clawd-dash/usage.json'
@@ -91,6 +92,24 @@ def get_usage(creds):
     }, creds
 
 
+def get_pi_stats():
+    cpu = round(psutil.cpu_percent(interval=0.5), 1)
+    ram = round(psutil.virtual_memory().percent, 1)
+    temp = None
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp') as f:
+            temp = round(int(f.read().strip()) / 1000, 1)
+    except Exception:
+        try:
+            for vals in psutil.sensors_temperatures().values():
+                if vals:
+                    temp = round(vals[0].current, 1)
+                    break
+        except Exception:
+            pass
+    return {'cpu': cpu, 'ram': ram, 'temp': temp}
+
+
 creds = load_creds()
 
 while True:
@@ -106,6 +125,7 @@ while True:
     try:
         creds = ensure_fresh(creds)
         usage, creds = get_usage(creds)
+        usage.update(get_pi_stats())
         with open(USAGE_PATH, 'w') as f:
             json.dump(usage, f)
         print(f"Updated: {usage}")
