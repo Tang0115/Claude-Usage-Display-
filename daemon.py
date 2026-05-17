@@ -131,4 +131,4 @@ while True:
         print(f"Updated: {usage}")
     except Exception as e:
         print(f"Error: {e}")
-    time.sleep(30)
+    time.sleep(60)
