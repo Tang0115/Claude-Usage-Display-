@@ -14,8 +14,8 @@ A Raspberry Pi desk dashboard that shows your Claude Code usage in real time —
 - DVD-style screensaver after 10 minutes of no usage change — bounces wall-to-wall, alternates images on each wall hit, wakes automatically when usage updates
 - Live status indicator shows LIVE / SYNCING / ERROR based on connection state
 - **Weather widget** — auto-detects the Pi's location via IP geolocation and shows current temperature (°F), weather icon, and condition using the Open-Meteo API (free, no key needed). Updates every 10 minutes
-- **Pi system stats** — displays live CPU %, RAM %, and CPU temperature pulled from `usage.json` and updated every 30 seconds
-- Auto-refreshes every 30 seconds
+- **Pi system stats** — displays live CPU %, RAM %, and CPU temperature pulled from `usage.json` and updated every 60 seconds
+- Auto-refreshes every 60 seconds
 - Launches automatically on boot
 
 ## Hardware
@@ -75,9 +75,9 @@ The dashboard will launch automatically on every boot.
 
 ## How it works
 
-- `daemon.py` — polls the Anthropic API every 30 seconds using your OAuth token and writes usage data to `usage.json`. Also reads CPU %, RAM %, and CPU temperature via `psutil` and appends them to the same file. Automatically refreshes the access token when it expires (or 5 minutes before) using the refresh token from `~/.claude/.credentials.json` — no manual intervention needed. On boot, retries the initial token check until the network is available
+- `daemon.py` — polls the Anthropic API every 60 seconds using your OAuth token and writes usage data to `usage.json`. Also reads CPU %, RAM %, and CPU temperature via `psutil` and appends them to the same file. Automatically refreshes the access token when it expires (or 5 minutes before) using the refresh token from `~/.claude/.credentials.json` — no manual intervention needed. On boot, retries the initial token check until the network is available
 - `server.py` — serves the dashboard files over a local HTTP server on port 8080
-- `dashboard.html` — the frontend that reads `usage.json` every 30 seconds and displays usage, Pi stats, and a weather widget. Weather uses IP geolocation (`ipapi.co`) to auto-detect the Pi's location and fetches conditions from Open-Meteo every 10 minutes
+- `dashboard.html` — the frontend that reads `usage.json` every 60 seconds and displays usage, Pi stats, and a weather widget. Weather uses IP geolocation (`ipapi.co`) to auto-detect the Pi's location and fetches conditions from Open-Meteo every 10 minutes
 
 ## Auto-update from GitHub
 
