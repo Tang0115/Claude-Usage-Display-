@@ -51,6 +51,13 @@
     color: #D97757;
     letter-spacing: 2px;
   }
+  .weather-lowhigh {
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #9ca3af;
+    letter-spacing: 1.5px;
+    text-align: center;
+  }
   .weather-desc {
     font-size: 0.63em;
     color: #f9fafb;
@@ -324,7 +331,8 @@
   <!-- Weather -->
   <div class="weather-widget">
     <div class="weather-icon" id="w-icon">🌡️</div>
-    <div class="weather-temp" id="w-temp">--°F</div>
+    <div class="weather-temp" id="w-temp">--°C</div>
+    <div class="weather-lowhigh" id="w-lowhigh">-- / --</div>
     <div class="weather-desc" id="w-desc">Loading...</div>
     <div class="weather-loc" id="w-loc">Detecting...</div>
   </div>
@@ -432,12 +440,15 @@
     if (!geoCache) await fetchLocation();
     try {
       const { lat, lon } = geoCache;
-      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit&timezone=auto`);
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max&temperature_unit=celsius&timezone=auto`);
       const data = await res.json();
       const temp = Math.round(data.current.temperature_2m);
       const code = data.current.weather_code;
+      const lo   = Math.round(data.daily.temperature_2m_min[0]);
+      const hi   = Math.round(data.daily.temperature_2m_max[0]);
       document.getElementById('w-icon').textContent = WMO_ICONS[code] || '🌡️';
-      document.getElementById('w-temp').textContent = temp + '°F';
+      document.getElementById('w-temp').textContent = temp + '°C';
+      document.getElementById('w-lowhigh').textContent = lo + '° / ' + hi + '°';
       document.getElementById('w-desc').textContent = WMO_DESC[code] || 'Unknown';
     } catch(e) {
       document.getElementById('w-desc').textContent = 'Unavailable';
