@@ -22,16 +22,28 @@ def is_expired(creds):
     now = datetime.now(timezone.utc).timestamp()
     return now >= (expires_at_ms / 1000) - EXPIRY_BUFFER_SECS
 
-def refresh_token(creds):
-    print("Refreshing access token...")
-    resp = requests.post(
+def do_refresh_request(refresh_token_value):
+    return requests.post(
         OAUTH_REFRESH_URL,
         json={
             'grant_type': 'refresh_token',
-            'refresh_token': creds['claudeAiOauth']['refreshToken'],
+            'refresh_token': refresh_token_value,
             'client_id': '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
         }
     )
+
+def refresh_token(creds):
+    print("Refreshing access token...", flush=True)
+    resp = do_refresh_request(creds['claudeAiOauth']['refreshToken'])
+
+    if resp.status_code == 400:
+        # Our in-memory refresh token may be stale because another process
+        # (e.g. the Claude Code CLI itself) already rotated it on disk.
+        # Reload the current credentials and retry once before giving up.
+        print("Refresh got 400 — reloading credentials from disk and retrying...", flush=True)
+        creds = load_creds()
+        resp = do_refresh_request(creds['claudeAiOauth']['refreshToken'])
+
     resp.raise_for_status()
     data = resp.json()
 
