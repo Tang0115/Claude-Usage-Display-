@@ -304,6 +304,24 @@
     inset: 0;
     background: #000;
     z-index: 500;
+    transition: background-color 1.2s ease;
+  }
+
+  #screensaver.spotify-active {
+    background-color: #111827;
+  }
+
+  #ss-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.55) 100%);
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+
+  #screensaver.spotify-active #ss-vignette {
+    opacity: 1;
   }
 
   #ss-logo {
@@ -318,12 +336,118 @@
   #ss-logo.alert {
     filter: drop-shadow(0 0 14px rgba(255,60,60,1)) drop-shadow(0 0 32px rgba(255,60,60,0.7));
   }
+
+  #ss-nowplaying {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    flex-direction: row;
+    align-items: center;
+    gap: 50px;
+  }
+
+  #ss-np-art {
+    width: 340px;
+    height: 340px;
+    object-fit: cover;
+    border-radius: 20px;
+    box-shadow: 0 0 60px rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  #ss-np-info {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    width: 460px;
+    flex-shrink: 0;
+    text-align: left;
+  }
+
+  .ss-np-marquee {
+    overflow: hidden;
+    width: 100%;
+  }
+
+  #ss-np-track {
+    font-size: 2.8em;
+    font-weight: 800;
+    color: #f9fafb;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    white-space: nowrap;
+    will-change: transform;
+  }
+
+  #ss-np-album {
+    font-size: 1.5em;
+    color: #d1d5db;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    white-space: nowrap;
+    will-change: transform;
+  }
+
+  #ss-np-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 6px;
+  }
+
+  #ss-np-artist {
+    font-size: 1.3em;
+    color: #9ca3af;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #ss-np-progress-track {
+    width: 100%;
+    height: 8px;
+    background: #1f2937;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  #ss-np-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #ffffff;
+    border-radius: 4px;
+    transition: width 0.9s linear;
+  }
+
+  #ss-np-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    color: #6b7280;
+    letter-spacing: 1px;
+  }
 </style>
 </head>
 <body>
 
 <div id="screensaver">
+  <div id="ss-vignette"></div>
   <img id="ss-logo" src="" alt="Claude">
+  <div id="ss-nowplaying">
+    <img id="ss-np-art" src="" alt="Album art">
+    <div id="ss-np-info">
+      <div class="ss-np-marquee"><div id="ss-np-track"></div></div>
+      <div class="ss-np-marquee"><div id="ss-np-album"></div></div>
+      <div id="ss-np-bottom">
+        <div id="ss-np-artist"></div>
+        <div id="ss-np-progress-track"><div id="ss-np-progress-fill"></div></div>
+        <div id="ss-np-time"><span id="ss-np-elapsed">0:00</span><span id="ss-np-duration">0:00</span></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- LEFT -->
@@ -470,20 +594,32 @@
   const IMG_NORMAL    = 'https://cdn.stickermule.com/artworks/1c69d7fd-a6de-42a8-99be-3edc7b32c8f1/large.png?cacheFor=31a4293c9f5cc540655eb3642dd66c15';
   const IMG_ALERT     = 'https://storage.googleapis.com/sm-artworks/be75b541-e429-4b61-a058-6a04bc35f712/proof_retina_3x.png?cacheFor=ffd712cab85177f32f96b3056e9b2d5c';
   const IMG_CELEBRATE = 'https://cdn.stickermule.com/artworks/d3c8ea82-59f0-4606-97fa-88acd0bf21a0/large.png?cacheFor=8db00d69ee7e53baa5a50b27b9c50bba';
+  const IMG_SPOTIFY   = 'assets/claude-spotify.png';
 
   // Preload all images
-  [IMG_NORMAL, IMG_ALERT, IMG_CELEBRATE].forEach(src => { const i = new Image(); i.src = src; });
+  [IMG_NORMAL, IMG_ALERT, IMG_CELEBRATE, IMG_SPOTIFY].forEach(src => { const i = new Image(); i.src = src; });
 
   let lastIsAlert = false;
   let celebrationActive = false;
+  let mainSpotifyPlaying = false;
+
+  function renderLogo() {
+    const el = document.getElementById('logo');
+    const targetSrc = mainSpotifyPlaying ? IMG_SPOTIFY : (lastIsAlert ? IMG_ALERT : IMG_NORMAL);
+    if (el.src !== targetSrc) el.src = targetSrc;
+    el.classList.toggle('alert', lastIsAlert && !mainSpotifyPlaying);
+  }
 
   function updateLogo(isAlert) {
     lastIsAlert = isAlert;
     if (celebrationActive) return;
-    const el = document.getElementById('logo');
-    const targetSrc = isAlert ? IMG_ALERT : IMG_NORMAL;
-    if (el.src !== targetSrc) el.src = targetSrc;
-    el.classList.toggle('alert', isAlert);
+    renderLogo();
+  }
+
+  function updateMainSpotify(playing) {
+    mainSpotifyPlaying = playing;
+    if (celebrationActive) return;
+    renderLogo();
   }
 
   function startCelebration() {
@@ -497,19 +633,156 @@
   function endCelebration() {
     celebrationActive = false;
     document.getElementById('reset-soon').style.opacity = '0';
-    const el = document.getElementById('logo');
-    el.src = lastIsAlert ? IMG_ALERT : IMG_NORMAL;
-    el.classList.toggle('alert', lastIsAlert);
+    renderLogo();
   }
 
   // ── Screensaver ──────────────────────────────────────────
   const SS_W = 1024, SS_H = 600, SS_SIZE = 160;
-  const STALE_THRESHOLD = 10; // polls before screensaver triggers (~10 minutes)
+  const STALE_MS = 150000; // no usage change for this long before screensaver triggers
 
   let ssActive = false, ssRaf = null;
   let ssX = 0, ssY = 0, ssDx = 2, ssDy = 1.6;
-  let staleCount = 0, prevSession = null, prevWeekly = null;
+  let staleSince = null, prevSession = null, prevWeekly = null;
   let ssRevertTimer = null;
+  let spotifyActive = false;
+  let spotifyProgressMs = 0, spotifyDurationMs = 0, spotifyFetchTime = 0;
+
+  function formatTime(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // ── Album art color extraction ────────────────────────────
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = 24;
+  colorCanvas.height = 24;
+  const colorCtx = colorCanvas.getContext('2d', { willReadFrequently: true });
+  let lastColorArtUrl = null;
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    const d = max - min;
+    if (d !== 0) {
+      s = d / (1 - Math.abs(2 * l - 1));
+      switch (max) {
+        case r: h = ((g - b) / d) % 6; break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+    return [h, s, l];
+  }
+
+  function hslToRgb(h, s, l) {
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60)       { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else              { r = c; g = 0; b = x; }
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+  }
+
+  function extractColorAndApply(artUrl) {
+    if (!artUrl || artUrl === lastColorArtUrl) return;
+    lastColorArtUrl = artUrl;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        colorCtx.drawImage(img, 0, 0, colorCanvas.width, colorCanvas.height);
+        const data = colorCtx.getImageData(0, 0, colorCanvas.width, colorCanvas.height).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          r += data[i]; g += data[i + 1]; b += data[i + 2];
+          count++;
+        }
+        r = r / count; g = g / count; b = b / count;
+        const [h, s, l] = rgbToHsl(r, g, b);
+        const [dr, dg, db] = hslToRgb(h, Math.min(s, 0.55), Math.min(l, 0.22));
+        document.getElementById('screensaver').style.backgroundColor = `rgb(${dr}, ${dg}, ${db})`;
+      } catch (e) {
+        // CORS/decode failure — keep the default background
+      }
+    };
+    img.src = artUrl;
+  }
+  // ─────────────────────────────────────────────────────────
+
+  // ── Marquee scroll for overflowing track/album text ──────
+  let lastMarqueeTrack = null, lastMarqueeAlbum = null;
+
+  function setupMarquee(el, text) {
+    if (el._marqueeAnim) { el._marqueeAnim.cancel(); el._marqueeAnim = null; }
+    el.style.transform = 'translateX(0)';
+    el.textContent = text;
+    const container = el.parentElement;
+    const overflow = el.scrollWidth - container.clientWidth;
+    if (overflow > 4) {
+      const speed = 35; // px/sec
+      const pauseMs = 1200;
+      const scrollMs = (overflow / speed) * 1000;
+      const totalMs = scrollMs + pauseMs * 2;
+      const pauseFrac = pauseMs / totalMs;
+      el._marqueeAnim = el.animate([
+        { transform: 'translateX(0)', offset: 0 },
+        { transform: 'translateX(0)', offset: pauseFrac },
+        { transform: `translateX(-${overflow}px)`, offset: 1 - pauseFrac },
+        { transform: `translateX(-${overflow}px)`, offset: 1 }
+      ], {
+        duration: totalMs,
+        iterations: Infinity,
+        direction: 'alternate',
+        easing: 'linear'
+      });
+    }
+  }
+  // ─────────────────────────────────────────────────────────
+
+  function updateNowPlaying(playing, track, album, artist, art, progressMs, durationMs) {
+    spotifyActive = playing;
+    const npEl = document.getElementById('ss-nowplaying');
+    const logoEl = document.getElementById('ss-logo');
+    const ssEl = document.getElementById('screensaver');
+    ssEl.classList.toggle('spotify-active', playing);
+    if (playing) {
+      if (track !== lastMarqueeTrack) {
+        lastMarqueeTrack = track;
+        setupMarquee(document.getElementById('ss-np-track'), track || '');
+      }
+      if (album !== lastMarqueeAlbum) {
+        lastMarqueeAlbum = album;
+        setupMarquee(document.getElementById('ss-np-album'), album || '');
+      }
+      document.getElementById('ss-np-artist').textContent = artist || '';
+      const artEl = document.getElementById('ss-np-art');
+      if (art && artEl.src !== art) artEl.src = art;
+      if (art) extractColorAndApply(art);
+      spotifyProgressMs = progressMs || 0;
+      spotifyDurationMs = durationMs || 0;
+      spotifyFetchTime = Date.now();
+      npEl.style.display = 'flex';
+      logoEl.style.display = 'none';
+    } else {
+      npEl.style.display = 'none';
+      logoEl.style.display = 'block';
+      lastColorArtUrl = null;
+      ssEl.style.backgroundColor = '';
+      lastMarqueeTrack = null;
+      lastMarqueeAlbum = null;
+    }
+  }
 
   function ssFlashEdge() {
     const img = document.getElementById('ss-logo');
@@ -552,6 +825,11 @@
     img.className = '';
     document.getElementById('screensaver').style.display = 'block';
     ssRaf = requestAnimationFrame(ssLoop);
+    // Force marquee re-measurement now that the container is actually visible
+    // (measuring while display:none always reads 0 width and would otherwise
+    // permanently skip the animation for a track that was already playing).
+    lastMarqueeTrack = null;
+    lastMarqueeAlbum = null;
   }
 
   function stopScreensaver() {
@@ -563,13 +841,14 @@
 
   function checkStale(session, weekly) {
     const isAlert = session >= 80 || weekly >= 80;
+    const now = Date.now();
     if (prevSession === null) {
       // first load — just record, don't count
     } else if (session === prevSession && weekly === prevWeekly) {
-      staleCount++;
-      if (staleCount >= STALE_THRESHOLD && !ssActive) startScreensaver(isAlert);
+      if (staleSince === null) staleSince = now;
+      if (now - staleSince >= STALE_MS && !ssActive) startScreensaver(isAlert);
     } else {
-      staleCount = 0;
+      staleSince = null;
       if (ssActive) stopScreensaver();
     }
     prevSession = session;
@@ -603,6 +882,13 @@
     const shouldCelebrate = sessionSecs > 0 && sessionLeft > 0 && sessionLeft < 300;
     if (shouldCelebrate && !celebrationActive) startCelebration();
     if (!shouldCelebrate && celebrationActive) endCelebration();
+
+    if (spotifyActive && spotifyDurationMs > 0) {
+      const elapsedMs = Math.min(spotifyDurationMs, spotifyProgressMs + (Date.now() - spotifyFetchTime));
+      document.getElementById('ss-np-progress-fill').style.width = (elapsedMs / spotifyDurationMs * 100) + '%';
+      document.getElementById('ss-np-elapsed').textContent = formatTime(elapsedMs);
+      document.getElementById('ss-np-duration').textContent = formatTime(spotifyDurationMs);
+    }
   }, 1000);
 
   function setLevel(valEl, barEl, pct) {
@@ -634,7 +920,10 @@
       setLevel(wv, wb, d.weekly);
 
       updateLogo(d.session >= 80 || d.weekly >= 80);
+      updateMainSpotify(!!d.spotify_playing);
       checkStale(d.session, d.weekly);
+      updateNowPlaying(!!d.spotify_playing, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
+        d.spotify_progress_ms, d.spotify_duration_ms);
 
       if (d.cpu !== undefined && d.cpu !== null) {
         document.getElementById('pi-cpu').textContent = d.cpu + '%';
@@ -656,7 +945,7 @@
   }
 
   update();
-  setInterval(update, 15000);
+  setInterval(update, 1000);
 
   // Reload only if the file has actually changed on disk (picks up GitHub auto-pulls)
   let pageVersion = null;

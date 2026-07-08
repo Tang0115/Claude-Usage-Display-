@@ -1,5 +1,7 @@
 import json
+import os
 import requests
+import threading
 import time
 from datetime import datetime, timezone
 import psutil
@@ -8,6 +10,12 @@ CREDENTIALS_PATH = '/home/tang0115/.claude/.credentials.json'
 USAGE_PATH       = '/home/tang0115/clawd-dash/usage.json'
 OAUTH_REFRESH_URL = 'https://platform.claude.com/v1/oauth/token'
 EXPIRY_BUFFER_SECS = 300  # refresh 5 min before actual expiry
+
+# Lives outside the repo (home directory) so it's never committed/pushed.
+# Written by spotify_auth_setup.py. Absent = Spotify widget just stays off.
+SPOTIFY_CREDENTIALS_PATH = os.path.expanduser('~/.spotify_credentials.json')
+SPOTIFY_TOKEN_URL       = 'https://accounts.spotify.com/api/token'
+SPOTIFY_NOWPLAYING_URL  = 'https://api.spotify.com/v1/me/player/currently-playing'
 
 def load_creds():
     with open(CREDENTIALS_PATH) as f:
@@ -122,7 +130,117 @@ def get_pi_stats():
     return {'cpu': cpu, 'ram': ram, 'temp': temp}
 
 
+def load_spotify_creds():
+    if not os.path.exists(SPOTIFY_CREDENTIALS_PATH):
+        return None
+    with open(SPOTIFY_CREDENTIALS_PATH) as f:
+        return json.load(f)
+
+def save_spotify_creds(creds):
+    with open(SPOTIFY_CREDENTIALS_PATH, 'w') as f:
+        json.dump(creds, f, indent=2)
+    os.chmod(SPOTIFY_CREDENTIALS_PATH, 0o600)
+
+def spotify_is_expired(creds):
+    now = datetime.now(timezone.utc).timestamp()
+    return now >= (creds['expires_at'] / 1000) - EXPIRY_BUFFER_SECS
+
+def spotify_refresh(creds):
+    resp = requests.post(SPOTIFY_TOKEN_URL, data={
+        'grant_type': 'refresh_token',
+        'refresh_token': creds['refresh_token'],
+        'client_id': creds['client_id'],
+        'client_secret': creds['client_secret'],
+    })
+    resp.raise_for_status()
+    data = resp.json()
+
+    creds['access_token'] = data['access_token']
+    if 'refresh_token' in data:
+        creds['refresh_token'] = data['refresh_token']
+    creds['expires_at'] = int(datetime.now(timezone.utc).timestamp() * 1000) + data['expires_in'] * 1000
+
+    save_spotify_creds(creds)
+    return creds
+
+def get_now_playing(creds):
+    """Returns (usage_fields, creds). No-ops if Spotify isn't set up."""
+    if creds is None:
+        return {'spotify_playing': False}, creds
+
+    if spotify_is_expired(creds):
+        creds = spotify_refresh(creds)
+
+    resp = requests.get(
+        SPOTIFY_NOWPLAYING_URL,
+        headers={'Authorization': f"Bearer {creds['access_token']}"},
+        timeout=5
+    )
+    if resp.status_code == 401:
+        creds = spotify_refresh(creds)
+        resp = requests.get(
+            SPOTIFY_NOWPLAYING_URL,
+            headers={'Authorization': f"Bearer {creds['access_token']}"},
+            timeout=5
+        )
+
+    if resp.status_code == 204 or not resp.content:
+        return {'spotify_playing': False}, creds
+
+    resp.raise_for_status()
+    data = resp.json()
+    item = data.get('item')
+    if not item or not data.get('is_playing'):
+        return {'spotify_playing': False}, creds
+
+    # Episodes (podcasts) use a 'show' object instead of 'album'/'artists'.
+    if data.get('currently_playing_type') == 'episode' or 'show' in item:
+        show = item.get('show', {})
+        images = item.get('images') or show.get('images', [])
+        album_name = show.get('name')
+        artist_name = show.get('publisher')
+    else:
+        album_obj = item.get('album', {})
+        images = album_obj.get('images', [])
+        album_name = album_obj.get('name')
+        artist_name = ', '.join(a['name'] for a in item.get('artists', []))
+
+    return {
+        'spotify_playing': True,
+        'spotify_track': item.get('name'),
+        'spotify_album': album_name,
+        'spotify_artist': artist_name,
+        'spotify_album_art': images[0]['url'] if images else None,
+        'spotify_progress_ms': data.get('progress_ms', 0),
+        'spotify_duration_ms': item.get('duration_ms', 0),
+    }, creds
+
+
 creds = load_creds()
+spotify_creds = load_spotify_creds()
+
+# Shared in-memory snapshot written to usage.json. Claude usage/Pi stats
+# (slow, 15s) and Spotify now-playing (fast, 1s) update it from separate
+# loops so a quick song switch doesn't wait on the slow Claude usage poll.
+usage_lock = threading.Lock()
+usage_state = {}
+
+def merge_and_write(fields):
+    with usage_lock:
+        usage_state.update(fields)
+        with open(USAGE_PATH, 'w') as f:
+            json.dump(usage_state, f)
+
+def spotify_loop():
+    global spotify_creds
+    while True:
+        try:
+            spotify_data, spotify_creds = get_now_playing(spotify_creds)
+        except Exception as e:
+            print(f"Spotify error: {e}")
+            spotify_data = {'spotify_playing': False}
+        merge_and_write(spotify_data)
+        time.sleep(1)
 
 while True:
     try:
@@ -133,14 +251,15 @@ while True:
         print(f"Startup retry (network not ready?): {e}")
         time.sleep(10)
 
+threading.Thread(target=spotify_loop, daemon=True).start()
+
 while True:
     try:
         creds = ensure_fresh(creds)
         usage, creds = get_usage(creds)
         usage.update(get_pi_stats())
-        with open(USAGE_PATH, 'w') as f:
-            json.dump(usage, f)
-        print(f"Updated: {usage}")
+        merge_and_write(usage)
+        print(f"Updated: {usage_state}")
     except Exception as e:
         print(f"Error: {e}")
     time.sleep(15)
