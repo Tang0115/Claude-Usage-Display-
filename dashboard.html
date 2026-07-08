@@ -401,9 +401,9 @@
     font-size: 1.3em;
     color: #9ca3af;
     letter-spacing: 0.5px;
+    display: inline-block;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    will-change: transform;
   }
 
   #ss-np-progress-track {
@@ -442,7 +442,7 @@
       <div class="ss-np-marquee"><div id="ss-np-track"></div></div>
       <div class="ss-np-marquee"><div id="ss-np-album"></div></div>
       <div id="ss-np-bottom">
-        <div id="ss-np-artist"></div>
+        <div class="ss-np-marquee"><div id="ss-np-artist"></div></div>
         <div id="ss-np-progress-track"><div id="ss-np-progress-fill"></div></div>
         <div id="ss-np-time"><span id="ss-np-elapsed">0:00</span><span id="ss-np-duration">0:00</span></div>
       </div>
@@ -721,7 +721,7 @@
   // ─────────────────────────────────────────────────────────
 
   // ── Marquee scroll for overflowing track/album text ──────
-  let lastMarqueeTrack = null, lastMarqueeAlbum = null;
+  let lastMarqueeTrack = null, lastMarqueeAlbum = null, lastMarqueeArtist = null;
 
   function setupMarquee(el, text) {
     if (el._marqueeAnim) { el._marqueeAnim.cancel(); el._marqueeAnim = null; }
@@ -765,7 +765,10 @@
         lastMarqueeAlbum = album;
         setupMarquee(document.getElementById('ss-np-album'), album || '');
       }
-      document.getElementById('ss-np-artist').textContent = artist || '';
+      if (artist !== lastMarqueeArtist) {
+        lastMarqueeArtist = artist;
+        setupMarquee(document.getElementById('ss-np-artist'), artist || '');
+      }
       const artEl = document.getElementById('ss-np-art');
       if (art && artEl.src !== art) artEl.src = art;
       if (art) extractColorAndApply(art);
@@ -781,6 +784,7 @@
       ssEl.style.backgroundColor = '';
       lastMarqueeTrack = null;
       lastMarqueeAlbum = null;
+      lastMarqueeArtist = null;
     }
   }
 
@@ -830,6 +834,7 @@
     // permanently skip the animation for a track that was already playing).
     lastMarqueeTrack = null;
     lastMarqueeAlbum = null;
+    lastMarqueeArtist = null;
   }
 
   function stopScreensaver() {
