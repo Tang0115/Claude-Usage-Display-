@@ -130,6 +130,10 @@ def get_pi_stats():
     return {'cpu': cpu, 'ram': ram, 'temp': temp}
 
 
+class SpotifyRateLimited(Exception):
+    def __init__(self, retry_after):
+        self.retry_after = retry_after
+
 def load_spotify_creds():
     if not os.path.exists(SPOTIFY_CREDENTIALS_PATH):
         return None
@@ -184,6 +188,12 @@ def get_now_playing(creds):
             timeout=5
         )
 
+    if resp.status_code == 429:
+        # Back off for as long as Spotify asks so we stop compounding the
+        # rate limit; the loop's own sleep is too short to recover from this.
+        retry_after = int(resp.headers.get('Retry-After', 5))
+        raise SpotifyRateLimited(retry_after)
+
     if resp.status_code == 204 or not resp.content:
         return {'spotify_playing': False}, creds
 
@@ -233,14 +243,26 @@ def merge_and_write(fields):
 
 def spotify_loop():
     global spotify_creds
+    # Fast polling is only useful while something's actually playing (for the
+    # marquee/progress bar). Idling at the same cadence just burns quota
+    # against Spotify's rate limit for no benefit, so back off while idle.
+    PLAYING_INTERVAL = 2
+    IDLE_INTERVAL = 20
     while True:
+        sleep_secs = IDLE_INTERVAL
         try:
             spotify_data, spotify_creds = get_now_playing(spotify_creds)
+            if spotify_data.get('spotify_playing'):
+                sleep_secs = PLAYING_INTERVAL
+        except SpotifyRateLimited as e:
+            print(f"Spotify rate limited, backing off {e.retry_after}s")
+            spotify_data = {'spotify_playing': False}
+            sleep_secs = e.retry_after
         except Exception as e:
             print(f"Spotify error: {e}")
             spotify_data = {'spotify_playing': False}
         merge_and_write(spotify_data)
-        time.sleep(1)
+        time.sleep(sleep_secs)
 
 while True:
     try:
