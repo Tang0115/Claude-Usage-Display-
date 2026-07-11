@@ -15,7 +15,13 @@ EXPIRY_BUFFER_SECS = 300  # refresh 5 min before actual expiry
 # Written by spotify_auth_setup.py. Absent = Spotify widget just stays off.
 SPOTIFY_CREDENTIALS_PATH = os.path.expanduser('~/.spotify_credentials.json')
 SPOTIFY_TOKEN_URL       = 'https://accounts.spotify.com/api/token'
-SPOTIFY_NOWPLAYING_URL  = 'https://api.spotify.com/v1/me/player/currently-playing'
+SPOTIFY_NOWPLAYING_URL  = 'https://api.spotify.com/v1/me/player'
+
+# Only show/fast-poll now-playing when it's active on one of these Connect
+# devices (matched case-insensitively against the API's device.name). Keeps
+# long car drives (which report as a different device) from hammering the
+# API at PLAYING_INTERVAL for hours straight.
+SPOTIFY_ALLOWED_DEVICES = {"tom's mac", "tomtang0115"}
 
 def load_creds():
     with open(CREDENTIALS_PATH) as f:
@@ -201,6 +207,13 @@ def get_now_playing(creds):
     data = resp.json()
     item = data.get('item')
     if not item or not data.get('is_playing'):
+        return {'spotify_playing': False}, creds
+
+    # Spotify sends a curly apostrophe (’) in device names like "Tom's
+    # Mac", not a straight one, so normalize before matching the allow-list.
+    device_name = (data.get('device') or {}).get('name', '')
+    device_name_normalized = device_name.strip().lower().replace('’', "'")
+    if device_name_normalized not in SPOTIFY_ALLOWED_DEVICES:
         return {'spotify_playing': False}, creds
 
     # Episodes (podcasts) use a 'show' object instead of 'album'/'artists'.
