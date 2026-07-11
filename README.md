@@ -62,9 +62,23 @@ sudo systemctl start clawd-daemon clawd-server
 
 **5. Set up autostart for the dashboard**
 ```bash
+sudo apt install python3-websocket
 mkdir -p ~/.config/autostart
 cp clawd-dash.desktop ~/.config/autostart/
 ```
+The dashboard is launched via `launch-dashboard.sh`, which starts Chromium
+with its DevTools port open (`--remote-debugging-port=9222`, bound to
+localhost only) and then runs `nudge_cursor.py`. That script waits for the
+page to finish loading and injects a few synthetic mouse-moves over the
+DevTools protocol.
+
+This is needed because Chromium doesn't apply the page's `cursor: none` CSS
+until it processes a real mouse-move event, so without this the pointer
+stays visible on boot until you physically move the mouse once. Wayland
+virtual-pointer tools (`wlrctl`, `ydotool`) move the compositor's cursor
+sprite but don't reliably deliver the enter/motion sequence Chromium needs
+to re-check its own cursor state — dispatching the event straight into
+Blink via CDP (the same mechanism Puppeteer/Playwright use) does.
 
 **6. (Optional) Set up the Spotify now-playing widget**
 

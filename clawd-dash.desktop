@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Clawd Usage Dashboard
+Exec=/home/tang0115/clawd-dash/launch-dashboard.sh
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
