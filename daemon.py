@@ -181,9 +181,13 @@ def get_now_playing(creds):
     if spotify_is_expired(creds):
         creds = spotify_refresh(creds)
 
+    # additional_types=episode is required for Spotify to include podcast
+    # episode data in the response at all; without it, 'item' comes back
+    # null/track-shaped even while currently_playing_type says 'episode'.
     resp = requests.get(
         SPOTIFY_NOWPLAYING_URL,
         headers={'Authorization': f"Bearer {creds['access_token']}"},
+        params={'additional_types': 'episode'},
         timeout=5
     )
     if resp.status_code == 401:
@@ -191,6 +195,7 @@ def get_now_playing(creds):
         resp = requests.get(
             SPOTIFY_NOWPLAYING_URL,
             headers={'Authorization': f"Bearer {creds['access_token']}"},
+            params={'additional_types': 'episode'},
             timeout=5
         )
 
@@ -217,11 +222,15 @@ def get_now_playing(creds):
         return {'spotify_playing': False}, creds
 
     # Episodes (podcasts) use a 'show' object instead of 'album'/'artists'.
-    if data.get('currently_playing_type') == 'episode' or 'show' in item:
+    # Spotify deprecated 'show.publisher' and no longer populates it, and
+    # episodes have no per-item artist anyway, so podcasts have no artist_name
+    # at all — the frontend displays show name in the artist slot instead.
+    is_podcast = data.get('currently_playing_type') == 'episode' or 'show' in item
+    if is_podcast:
         show = item.get('show', {})
         images = item.get('images') or show.get('images', [])
         album_name = show.get('name')
-        artist_name = show.get('publisher')
+        artist_name = None
     else:
         album_obj = item.get('album', {})
         images = album_obj.get('images', [])
@@ -230,6 +239,7 @@ def get_now_playing(creds):
 
     return {
         'spotify_playing': True,
+        'spotify_is_podcast': is_podcast,
         'spotify_track': item.get('name'),
         'spotify_album': album_name,
         'spotify_artist': artist_name,

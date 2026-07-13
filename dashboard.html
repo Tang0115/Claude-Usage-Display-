@@ -750,7 +750,7 @@
   }
   // ─────────────────────────────────────────────────────────
 
-  function updateNowPlaying(playing, track, album, artist, art, progressMs, durationMs) {
+  function updateNowPlaying(playing, track, album, artist, art, progressMs, durationMs, isPodcast) {
     spotifyActive = playing;
     const npEl = document.getElementById('ss-nowplaying');
     const logoEl = document.getElementById('ss-logo');
@@ -761,13 +761,18 @@
         lastMarqueeTrack = track;
         setupMarquee(document.getElementById('ss-np-track'), track || '');
       }
-      if (album !== lastMarqueeAlbum) {
+      // Podcasts have no artist, so the middle album line is dropped and
+      // the show name (album) takes its place in the bottom slot instead.
+      const albumLineEl = document.getElementById('ss-np-album').parentElement;
+      albumLineEl.style.display = isPodcast ? 'none' : '';
+      if (!isPodcast && album !== lastMarqueeAlbum) {
         lastMarqueeAlbum = album;
         setupMarquee(document.getElementById('ss-np-album'), album || '');
       }
-      if (artist !== lastMarqueeArtist) {
-        lastMarqueeArtist = artist;
-        setupMarquee(document.getElementById('ss-np-artist'), artist || '');
+      const bottomText = isPodcast ? album : artist;
+      if (bottomText !== lastMarqueeArtist) {
+        lastMarqueeArtist = bottomText;
+        setupMarquee(document.getElementById('ss-np-artist'), bottomText || '');
       }
       const artEl = document.getElementById('ss-np-art');
       if (art && artEl.src !== art) artEl.src = art;
@@ -928,7 +933,7 @@
       updateMainSpotify(!!d.spotify_playing);
       checkStale(d.session, d.weekly);
       updateNowPlaying(!!d.spotify_playing, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
-        d.spotify_progress_ms, d.spotify_duration_ms);
+        d.spotify_progress_ms, d.spotify_duration_ms, !!d.spotify_is_podcast);
 
       if (d.cpu !== undefined && d.cpu !== null) {
         document.getElementById('pi-cpu').textContent = d.cpu + '%';
