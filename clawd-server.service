@@ -1,0 +1,15 @@
+[Unit]
+Description=Clawd Usage Dashboard - HTTP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tang0115
+WorkingDirectory=/home/tang0115/clawd-dash
+ExecStart=/usr/bin/python3 /home/tang0115/clawd-dash/server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
