@@ -7,7 +7,12 @@ from datetime import datetime, timezone
 import psutil
 
 CREDENTIALS_PATH = '/home/tang0115/.claude/.credentials.json'
-USAGE_PATH       = '/home/tang0115/clawd-dash/usage.json'
+# Lives on tmpfs (RAM), not the SD card: this is rewritten every 15s (as
+# often as every 2s while Spotify is playing), which is a brutal write
+# pattern for flash storage and a prime suspect for repeated SD corruption
+# on an always-on kiosk with no clean-shutdown routine. A symlink at the
+# old on-disk path keeps server.py/dashboard.html working unmodified.
+USAGE_PATH       = '/dev/shm/usage.json'
 OAUTH_REFRESH_URL = 'https://platform.claude.com/v1/oauth/token'
 EXPIRY_BUFFER_SECS = 300  # refresh 5 min before actual expiry
 
