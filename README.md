@@ -80,7 +80,20 @@ sprite but don't reliably deliver the enter/motion sequence Chromium needs
 to re-check its own cursor state — dispatching the event straight into
 Blink via CDP (the same mechanism Puppeteer/Playwright use) does.
 
-**6. (Optional) Set up the Spotify now-playing widget**
+**6. Set up auto-update from GitHub**
+```bash
+chmod +x auto-update.sh
+(crontab -l 2>/dev/null | grep -v auto-update.sh; echo "*/5 * * * * $HOME/clawd-dash/auto-update.sh >> $HOME/clawd-dash/auto-update.log 2>&1") | crontab -
+```
+Every 5 minutes, `auto-update.sh` fetches `origin/main` and hard-resets the
+repo to it, restarting `clawd-daemon`/`clawd-server` if the commit changed —
+but only when the working tree is clean; if you have uncommitted local edits
+(e.g. mid-way through step 7.4 below), it skips the update rather than
+discarding them. It runs `systemctl restart` via `sudo`, so the user running
+cron needs passwordless sudo for that (the default `pi`-equivalent user on
+Raspberry Pi OS already has this).
+
+**7. (Optional) Set up the Spotify now-playing widget**
 
 This is a one-time interactive step done outside of git, so your Spotify API keys are never written into this repo or pushed to GitHub.
 
@@ -89,14 +102,14 @@ This is a one-time interactive step done outside of git, so your Spotify API key
    ```bash
    python3 spotify_auth_setup.py
    ```
-   If the Pi is headless (no browser), run this step on your laptop instead and `scp` the resulting `~/.spotify_credentials.json` over to the Pi's home directory.
+   If the Pi is headless (no browser), run this step on your laptop instead and `scp` the resulting `~/.spotify_credentials.json` over to the Pi's home directory. Note: `webbrowser.open()` will silently fall back to a text-mode browser over an SSH session with no `DISPLAY` set, which can't complete a real login — either run the script at the Pi's own physical desktop session, or open the printed authorization URL yourself in a real browser on the Pi's screen (the redirect target is `127.0.0.1:8888`, so it must be opened on the Pi itself, not a remote device).
 3. Restart the daemon so it picks up the new credentials:
    ```bash
    sudo systemctl restart clawd-daemon
    ```
 4. Edit `SPOTIFY_ALLOWED_DEVICES` at the top of `daemon.py` to list the Spotify Connect device name(s) — exactly as shown in the Spotify app's device picker, lowercase — that should trigger the now-playing widget (e.g. your computers). Playback on any other device (phone, car, speaker, etc.) is treated as idle: it won't show on the dashboard and won't be polled at the fast interval.
 
-**7. Reboot**
+**8. Reboot**
 ```bash
 sudo reboot
 ```

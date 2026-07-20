@@ -4,6 +4,11 @@
 set -e
 cd /home/tang0115/clawd-dash
 
+if [ -n "$(git status --porcelain)" ]; then
+    echo "$(date): local changes present, skipping auto-update"
+    exit 0
+fi
+
 BEFORE=$(git rev-parse HEAD)
 git fetch origin main --quiet
 git reset --hard origin/main --quiet
