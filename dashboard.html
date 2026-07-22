@@ -757,6 +757,12 @@
     const ssEl = document.getElementById('screensaver');
     ssEl.classList.toggle('spotify-active', playing);
     if (playing) {
+      // Make the container visible before measuring marquee overflow below —
+      // scrollWidth/clientWidth read 0 while an ancestor is display:none, which
+      // would permanently skip the scroll animation for whatever track is
+      // first playing when the widget transitions from hidden to shown.
+      npEl.style.display = 'flex';
+      logoEl.style.display = 'none';
       if (track !== lastMarqueeTrack) {
         lastMarqueeTrack = track;
         setupMarquee(document.getElementById('ss-np-track'), track || '');
@@ -780,8 +786,6 @@
       spotifyProgressMs = progressMs || 0;
       spotifyDurationMs = durationMs || 0;
       spotifyFetchTime = Date.now();
-      npEl.style.display = 'flex';
-      logoEl.style.display = 'none';
     } else {
       npEl.style.display = 'none';
       logoEl.style.display = 'block';

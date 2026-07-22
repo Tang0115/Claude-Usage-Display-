@@ -274,7 +274,7 @@ def spotify_loop():
     # Fast polling is only useful while something's actually playing (for the
     # marquee/progress bar). Idling at the same cadence just burns quota
     # against Spotify's rate limit for no benefit, so back off while idle.
-    PLAYING_INTERVAL = 2
+    PLAYING_INTERVAL = 1
     IDLE_INTERVAL = 20
     while True:
         sleep_secs = IDLE_INTERVAL
