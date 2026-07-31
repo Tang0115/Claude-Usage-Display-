@@ -871,7 +871,7 @@
   // ─────────────────────────────────────────────────────────
 
   // Countdown with seconds
-  let sessionSecs = 0, weeklySecs = 0, lastFetch = 0;
+  let sessionResetTs = 0, weeklyResetTs = 0;
 
   function formatCountdown(total) {
     if (total <= 0) return 'NOW';
@@ -887,13 +887,13 @@
   }
 
   setInterval(() => {
-    const elapsed = Math.floor((Date.now() - lastFetch) / 1000);
-    const sessionLeft = Math.max(0, sessionSecs - elapsed);
-    const weeklyLeft  = Math.max(0, weeklySecs  - elapsed);
+    const nowSecs = Date.now() / 1000;
+    const sessionLeft = Math.max(0, Math.round(sessionResetTs - nowSecs));
+    const weeklyLeft  = Math.max(0, Math.round(weeklyResetTs  - nowSecs));
     document.getElementById('session-cd').textContent = formatCountdown(sessionLeft);
     document.getElementById('weekly-cd').textContent  = formatCountdown(weeklyLeft);
 
-    const shouldCelebrate = sessionSecs > 0 && sessionLeft > 0 && sessionLeft < 300;
+    const shouldCelebrate = sessionResetTs > 0 && sessionLeft > 0 && sessionLeft < 300;
     if (shouldCelebrate && !celebrationActive) startCelebration();
     if (!shouldCelebrate && celebrationActive) endCelebration();
 
@@ -916,9 +916,8 @@
       const res = await fetch('/usage.json?t=' + Date.now());
       const d   = await res.json();
 
-      sessionSecs = d.session_reset_mins * 60;
-      weeklySecs  = d.weekly_reset_mins  * 60;
-      lastFetch   = Date.now();
+      sessionResetTs = d.session_reset_ts;
+      weeklyResetTs  = d.weekly_reset_ts;
 
       const sv = document.getElementById('session-val');
       const sb = document.getElementById('session-bar');

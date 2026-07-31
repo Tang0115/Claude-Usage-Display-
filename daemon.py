@@ -118,8 +118,8 @@ def get_usage(creds):
     return {
         'session': round(session_pct, 2),
         'weekly':  round(weekly_pct, 2),
-        'session_reset_mins': max(0, int((session_reset_ts - now) / 60)),
-        'weekly_reset_mins':  max(0, int((weekly_reset_ts  - now) / 60))
+        'session_reset_ts': session_reset_ts,
+        'weekly_reset_ts':  weekly_reset_ts
     }, creds
 
 
