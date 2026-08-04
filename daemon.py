@@ -48,7 +48,8 @@ def do_refresh_request(refresh_token_value):
             'grant_type': 'refresh_token',
             'refresh_token': refresh_token_value,
             'client_id': '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
-        }
+        },
+        timeout=10
     )
 
 def refresh_token(creds):
@@ -94,7 +95,8 @@ def call_api(access_token):
             'model': 'claude-haiku-4-5-20251001',
             'max_tokens': 1,
             'messages': [{'role': 'user', 'content': 'hi'}]
-        }
+        },
+        timeout=10
     )
 
 def get_usage(creds):
@@ -166,7 +168,7 @@ def spotify_refresh(creds):
         'refresh_token': creds['refresh_token'],
         'client_id': creds['client_id'],
         'client_secret': creds['client_secret'],
-    })
+    }, timeout=10)
     resp.raise_for_status()
     data = resp.json()
 
