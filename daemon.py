@@ -1,8 +1,10 @@
 import json
 import os
+import re
 import requests
 import threading
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 import psutil
 
@@ -27,6 +29,15 @@ SPOTIFY_NOWPLAYING_URL  = 'https://api.spotify.com/v1/me/player'
 # long car drives (which report as a different device) from hammering the
 # API at PLAYING_INTERVAL for hours straight.
 SPOTIFY_ALLOWED_DEVICES = {"tom's mac", "tomtang0115"}
+
+# BBC's World feed — free, no key/account needed, and each item ships a
+# media:thumbnail image (bumped up to 1024px below) which is what makes the
+# "big picture" screensaver mode possible with zero extra API integration.
+BBC_NEWS_RSS_URL = 'https://feeds.bbci.co.uk/news/world/rss.xml'
+NEWS_ITEM_COUNT = 8
+NEWS_INTERVAL = 600        # 10 min — feed's own ttl is 15 min, this is plenty fresh
+NEWS_RETRY_INTERVAL = 60
+MEDIA_NS = '{http://search.yahoo.com/mrss/}'
 
 def load_creds():
     with open(CREDENTIALS_PATH) as f:
@@ -256,6 +267,42 @@ def get_now_playing(creds):
     }, creds
 
 
+def upgrade_thumbnail(url):
+    # BBC thumbnail URLs embed the pixel width as a path segment right
+    # before 'cpsprodpb' (e.g. .../240/cpsprodpb/...); bumping it to 1024
+    # gets a full-size image instead of the tiny default thumbnail.
+    return re.sub(r'/\d+/(cpsprodpb)', r'/1024/\1', url)
+
+def get_news():
+    """Fetches and parses the BBC World RSS feed. No key/account needed."""
+    resp = requests.get(BBC_NEWS_RSS_URL, timeout=10)
+    resp.raise_for_status()
+    root = ET.fromstring(resp.content)
+
+    items = []
+    for item in root.findall('.//item')[:NEWS_ITEM_COUNT]:
+        title = (item.findtext('title') or '').strip()
+        if not title:
+            continue
+        description = (item.findtext('description') or '').strip()
+        link = (item.findtext('link') or '').strip()
+        thumb = item.find(f'{MEDIA_NS}thumbnail')
+        image = upgrade_thumbnail(thumb.get('url')) if thumb is not None else None
+        items.append({'title': title, 'description': description, 'link': link, 'image': image})
+
+    return {'news_items': items, 'news_updated_ts': time.time()}
+
+def news_loop():
+    while True:
+        sleep_secs = NEWS_INTERVAL
+        try:
+            merge_and_write(get_news())
+        except Exception as e:
+            print(f"News error: {e}")
+            sleep_secs = NEWS_RETRY_INTERVAL
+        time.sleep(sleep_secs)
+
+
 creds = load_creds()
 spotify_creds = load_spotify_creds()
 
@@ -304,6 +351,7 @@ while True:
         time.sleep(10)
 
 threading.Thread(target=spotify_loop, daemon=True).start()
+threading.Thread(target=news_loop, daemon=True).start()
 
 while True:
     try:

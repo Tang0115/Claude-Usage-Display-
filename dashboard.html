@@ -429,6 +429,62 @@
     color: #6b7280;
     letter-spacing: 1px;
   }
+
+  /* NEWS SCREENSAVER MODE */
+  #ss-news {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  #ss-news-image {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-color: #111827;
+  }
+
+  #ss-news-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.6) 38%, rgba(0,0,0,0.1) 65%, rgba(0,0,0,0.3) 100%);
+  }
+
+  #ss-news-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 50px 60px;
+  }
+
+  #ss-news-source {
+    font-size: 0.85em;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #f0c070;
+    margin-bottom: 12px;
+  }
+
+  #ss-news-headline {
+    font-size: 2.3em;
+    font-weight: 800;
+    line-height: 1.18;
+    max-width: 880px;
+    color: #f9fafb;
+    margin-bottom: 14px;
+    transition: opacity 0.5s ease;
+  }
+
+  #ss-news-desc {
+    font-size: 1.05em;
+    line-height: 1.4;
+    max-width: 780px;
+    color: #d1d5db;
+    transition: opacity 0.5s ease;
+  }
 </style>
 </head>
 <body>
@@ -446,6 +502,15 @@
         <div id="ss-np-progress-track"><div id="ss-np-progress-fill"></div></div>
         <div id="ss-np-time"><span id="ss-np-elapsed">0:00</span><span id="ss-np-duration">0:00</span></div>
       </div>
+    </div>
+  </div>
+  <div id="ss-news">
+    <div id="ss-news-image"></div>
+    <div id="ss-news-scrim"></div>
+    <div id="ss-news-content">
+      <div id="ss-news-source">BBC NEWS</div>
+      <div id="ss-news-headline"></div>
+      <div id="ss-news-desc"></div>
     </div>
   </div>
 </div>
@@ -639,6 +704,8 @@
   // ── Screensaver ──────────────────────────────────────────
   const SS_W = 1024, SS_H = 600, SS_SIZE = 160;
   const STALE_MS = 150000; // no usage change for this long before screensaver triggers
+  const NEWS_STALE_MS = 30 * 60 * 1000; // no usage change for this long before DVD bounce hands off to the news card
+  const NEWS_CYCLE_MS = 20000; // how long each headline stays up while cycling
 
   let ssActive = false, ssRaf = null;
   let ssX = 0, ssY = 0, ssDx = 2, ssDy = 1.6;
@@ -646,6 +713,7 @@
   let ssRevertTimer = null;
   let spotifyActive = false;
   let spotifyProgressMs = 0, spotifyDurationMs = 0, spotifyFetchTime = 0;
+  let newsItems = [], newsIdx = 0, newsCycleTimer = null, newsMode = false;
 
   function formatTime(ms) {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -753,7 +821,6 @@
   function updateNowPlaying(playing, track, album, artist, art, progressMs, durationMs, isPodcast) {
     spotifyActive = playing;
     const npEl = document.getElementById('ss-nowplaying');
-    const logoEl = document.getElementById('ss-logo');
     const ssEl = document.getElementById('screensaver');
     ssEl.classList.toggle('spotify-active', playing);
     if (playing) {
@@ -762,7 +829,6 @@
       // would permanently skip the scroll animation for whatever track is
       // first playing when the widget transitions from hidden to shown.
       npEl.style.display = 'flex';
-      logoEl.style.display = 'none';
       if (track !== lastMarqueeTrack) {
         lastMarqueeTrack = track;
         setupMarquee(document.getElementById('ss-np-track'), track || '');
@@ -788,7 +854,6 @@
       spotifyFetchTime = Date.now();
     } else {
       npEl.style.display = 'none';
-      logoEl.style.display = 'block';
       lastColorArtUrl = null;
       ssEl.style.backgroundColor = '';
       lastMarqueeTrack = null;
@@ -796,6 +861,76 @@
       lastMarqueeArtist = null;
     }
   }
+
+  // ── News screensaver mode ─────────────────────────────────
+  // Kicks in only once Claude usage has been stale for NEWS_STALE_MS *and*
+  // nothing's playing on Spotify — Spotify always takes priority over news.
+  function renderNewsCard() {
+    if (!newsItems.length) return;
+    const item = newsItems[newsIdx % newsItems.length];
+    const imgEl = document.getElementById('ss-news-image');
+    const headEl = document.getElementById('ss-news-headline');
+    const descEl = document.getElementById('ss-news-desc');
+    headEl.style.opacity = '0';
+    descEl.style.opacity = '0';
+    setTimeout(() => {
+      if (item.image) imgEl.style.backgroundImage = `url("${item.image}")`;
+      headEl.textContent = item.title;
+      descEl.textContent = item.description || '';
+      headEl.style.opacity = '1';
+      descEl.style.opacity = '1';
+    }, 250);
+  }
+
+  function startNewsCycle() {
+    newsIdx = 0;
+    renderNewsCard();
+    if (newsCycleTimer) clearInterval(newsCycleTimer);
+    newsCycleTimer = setInterval(() => {
+      newsIdx++;
+      renderNewsCard();
+    }, NEWS_CYCLE_MS);
+  }
+
+  function stopNewsCycle() {
+    if (newsCycleTimer) { clearInterval(newsCycleTimer); newsCycleTimer = null; }
+  }
+
+  function updateNewsItems(items) {
+    const list = items || [];
+    const changed = JSON.stringify(list.map(i => i.title)) !== JSON.stringify(newsItems.map(i => i.title));
+    newsItems = list;
+    // A fresh headline set mid-display restarts the cycle from the newest
+    // story rather than waiting out whatever index it was on.
+    if (changed && newsMode) startNewsCycle();
+  }
+
+  // Single source of truth for which of logo / now-playing / news is shown.
+  // Spotify (handled above) always wins; news is a long-idle fallback under it.
+  function refreshScreensaverMode() {
+    const logoEl = document.getElementById('ss-logo');
+    const newsEl = document.getElementById('ss-news');
+    if (!ssActive || spotifyActive) {
+      if (newsMode) { newsMode = false; stopNewsCycle(); }
+      newsEl.style.display = 'none';
+      if (ssActive) logoEl.style.display = spotifyActive ? 'none' : 'block';
+      return;
+    }
+    const idleMs = staleSince !== null ? Date.now() - staleSince : 0;
+    const wantNews = idleMs >= NEWS_STALE_MS && newsItems.length > 0;
+    if (wantNews && !newsMode) {
+      newsMode = true;
+      logoEl.style.display = 'none';
+      newsEl.style.display = 'block';
+      startNewsCycle();
+    } else if (!wantNews && newsMode) {
+      newsMode = false;
+      stopNewsCycle();
+      newsEl.style.display = 'none';
+      logoEl.style.display = 'block';
+    }
+  }
+  // ─────────────────────────────────────────────────────────
 
   function ssFlashEdge() {
     const img = document.getElementById('ss-logo');
@@ -836,6 +971,10 @@
     const img = document.getElementById('ss-logo');
     img.src = IMG_NORMAL;
     img.className = '';
+    img.style.display = 'block';
+    document.getElementById('ss-news').style.display = 'none';
+    newsMode = false;
+    stopNewsCycle();
     document.getElementById('screensaver').style.display = 'block';
     ssRaf = requestAnimationFrame(ssLoop);
     // Force marquee re-measurement now that the container is actually visible
@@ -851,6 +990,9 @@
     document.getElementById('screensaver').style.display = 'none';
     if (ssRaf) { cancelAnimationFrame(ssRaf); ssRaf = null; }
     if (ssRevertTimer) { clearTimeout(ssRevertTimer); ssRevertTimer = null; }
+    newsMode = false;
+    stopNewsCycle();
+    document.getElementById('ss-news').style.display = 'none';
   }
 
   function checkStale(session, weekly) {
@@ -934,9 +1076,11 @@
 
       updateLogo(d.session >= 80 || d.weekly >= 80);
       updateMainSpotify(!!d.spotify_playing);
+      updateNewsItems(d.news_items);
       checkStale(d.session, d.weekly);
       updateNowPlaying(!!d.spotify_playing, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
         d.spotify_progress_ms, d.spotify_duration_ms, !!d.spotify_is_podcast);
+      refreshScreensaverMode();
 
       if (d.cpu !== undefined && d.cpu !== null) {
         document.getElementById('pi-cpu').textContent = d.cpu + '%';
