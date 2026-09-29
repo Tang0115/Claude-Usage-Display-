@@ -8,7 +8,7 @@ Type=simple
 User=tang0115
 WorkingDirectory=/home/tang0115/clawd-dash
 # usage.json lives on tmpfs (/dev/shm), not the SD card, to avoid the
-# every-15s (every-2s while Spotify plays) write pattern that was traced
+# every-15s (every-1s while Spotify plays) write pattern that was traced
 # back as the likely cause of repeated SD card corruption. /dev/shm is
 # recreated empty on every boot, so the symlink has to be re-pointed here
 # rather than committed to git as a static file.

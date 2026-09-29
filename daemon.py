@@ -10,7 +10,7 @@ import psutil
 
 CREDENTIALS_PATH = '/home/tang0115/.claude/.credentials.json'
 # Lives on tmpfs (RAM), not the SD card: this is rewritten every 15s (as
-# often as every 2s while Spotify is playing), which is a brutal write
+# often as every 1s while Spotify is playing), which is a brutal write
 # pattern for flash storage and a prime suspect for repeated SD corruption
 # on an always-on kiosk with no clean-shutdown routine. A symlink at the
 # old on-disk path keeps server.py/dashboard.html working unmodified.
