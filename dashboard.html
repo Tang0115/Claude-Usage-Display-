@@ -516,12 +516,16 @@
     background: #0b0f17;
   }
 
+  /* No pointer events, like the stream player: an iframe's own document
+     sets the cursor while hovered, which would bring the pointer back over
+     the kiosk. The page needs no mouse (it rotates on its own). */
   #ss-jev iframe {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     border: 0;
+    pointer-events: none;
   }
 
   #ss-jev-offline {
