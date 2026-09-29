@@ -30,7 +30,7 @@ last_heartbeat = None
 # handle the id in dashboard.html's applyControlMode/refreshScreensaverMode.
 MODES = {
     'auto':       'Auto',
-    'dashboard':  'Dashboard',
+    'dashboard':  'Claude Usage',
     'dvd':        'DVD Bounce',
     'news':       'News',
     'nowplaying': 'Now Playing',
