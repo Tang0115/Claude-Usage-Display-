@@ -34,7 +34,20 @@ MODES = {
     'dvd':        'DVD Bounce',
     'news':       'News',
     'nowplaying': 'Now Playing',
+    'onthisday':  'On This Day',
 }
+
+# Live-stream screensavers: id -> (name in the Home app, YouTube video ID).
+# Each becomes its own HomeKit input and plays full-screen and muted, with
+# no dashboard code needed per stream — adding one is just a line here. Only
+# use streams that run 24/7 and allow embedding.
+STREAMS = {
+    'reef':     ('Tropical Reef', 'DHUnz4dyb54'),  # Aquarium of the Pacific, via explore.org
+    'sharks':   ('Shark Cam',     'tEtg5Kg3voQ'),  # Monterey Bay Aquarium
+    'aquarium': ('Aquarium 4K',   'nd_ildQK6wc'),  # Francis's Aquarium 4K
+    'fishtank': ('Fish Tank',     'k0F4jTkhklI'),  # Cat TV Fish Tank 4K
+}
+MODES.update({k: name for k, (name, _) in STREAMS.items()})
 CONTROL_PATH = os.path.expanduser('~/.clawd_control.json')
 
 # Power is the HDMI output itself, toggled through the Wayland compositor.
@@ -110,7 +123,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self._json({
                     'power': get_power(),
                     'mode': current_mode,
-                    'modes': [{'id': k, 'name': v} for k, v in MODES.items()],
+                    'modes': [
+                        {'id': k, 'name': v, **({'video': STREAMS[k][1]} if k in STREAMS else {})}
+                        for k, v in MODES.items()
+                    ],
                 })
             except Exception as e:
                 self._json({'error': str(e)}, 500)

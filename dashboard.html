@@ -466,6 +466,7 @@
     letter-spacing: 3px;
     color: #f0c070;
     margin-bottom: 12px;
+    transition: opacity 0.5s ease;
   }
 
   #ss-news-headline {
@@ -476,6 +477,34 @@
     color: #f9fafb;
     margin-bottom: 14px;
     transition: opacity 0.5s ease;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+  }
+
+  #ss-news-headline.long { font-size: 1.7em; }
+
+  /* LIVE STREAM SCREENSAVER MODE (aquarium cams etc., from server.py STREAMS) */
+  #ss-stream {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  /* 16:9 at the screen's full 600px height (1067px wide), centered, so the
+     video fills the 1024x600 panel with no letterbox bars. No pointer
+     events, so hovering never brings up YouTube's overlay controls. */
+  #ss-stream iframe {
+    position: absolute;
+    top: 0;
+    left: -21px;
+    width: 1067px;
+    height: 600px;
+    border: 0;
+    pointer-events: none;
   }
 
   #ss-news-desc {
@@ -484,6 +513,10 @@
     max-width: 780px;
     color: #d1d5db;
     transition: opacity 0.5s ease;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
   }
 </style>
 </head>
@@ -513,6 +546,7 @@
       <div id="ss-news-desc"></div>
     </div>
   </div>
+  <div id="ss-stream"></div>
 </div>
 
 <!-- LEFT -->
@@ -714,10 +748,16 @@
   let ssRevertTimer = null;
   let spotifyActive = false;
   let spotifyProgressMs = 0, spotifyDurationMs = 0, spotifyFetchTime = 0;
-  let newsItems = [], newsIdx = 0, newsCycleTimer = null, newsMode = false;
-  // Set from HomeKit via server.py's /control: 'auto' runs the idle/wake
-  // logic below; 'dashboard' / 'dvd' / 'news' / 'nowplaying' force that view.
-  let controlMode = 'auto', prevControlMode = 'auto';
+  // News and On This Day share one full-bleed image card; `cardDeck` is
+  // which list it's cycling ('news' | 'onthisday' | null when hidden).
+  let newsItems = [], otdItems = [], cardIdx = 0, cardCycleTimer = null, cardDeck = null;
+  // Set from HomeKit via server.py's /control: which screensaver to use
+  // ('auto' = DVD, handing off to news after NEWS_STALE_MS), or 'dashboard'
+  // for none. null until the first fetch so a page reload doesn't count as
+  // a fresh pick.
+  let controlMode = 'auto', prevControlMode = null;
+  // Live-stream modes -> YouTube video ID, from /control (server.py STREAMS).
+  let streamVideos = {}, streamShown = null;
 
   function formatTime(ms) {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -866,74 +906,134 @@
     }
   }
 
-  // ── News screensaver mode ─────────────────────────────────
-  // Kicks in only once Claude usage has been stale for NEWS_STALE_MS *and*
-  // nothing's playing on Spotify — Spotify always takes priority over news.
-  function renderNewsCard() {
-    if (!newsItems.length) return;
-    const item = newsItems[newsIdx % newsItems.length];
+  // ── Card screensavers (News / On This Day) ───────────────
+  // Items are {image, kicker, title, description}. Spotify always takes
+  // priority over either deck.
+  function cardItemsFor(deck) {
+    return deck === 'news' ? newsItems : deck === 'onthisday' ? otdItems : [];
+  }
+
+  function renderCard() {
+    const items = cardItemsFor(cardDeck);
+    if (!items.length) return;
+    const item = items[cardIdx % items.length];
     const imgEl = document.getElementById('ss-news-image');
-    const headEl = document.getElementById('ss-news-headline');
-    const descEl = document.getElementById('ss-news-desc');
-    headEl.style.opacity = '0';
-    descEl.style.opacity = '0';
+    const fadeEls = ['ss-news-source', 'ss-news-headline', 'ss-news-desc'].map(id => document.getElementById(id));
+    const [srcEl, headEl, descEl] = fadeEls;
+    fadeEls.forEach(el => el.style.opacity = '0');
     setTimeout(() => {
-      if (item.image) imgEl.style.backgroundImage = `url("${item.image}")`;
+      imgEl.style.backgroundImage = item.image ? `url("${item.image}")` : '';
+      srcEl.textContent = item.kicker;
       headEl.textContent = item.title;
+      // On This Day entries run much longer than news headlines.
+      headEl.classList.toggle('long', item.title.length > 110);
       descEl.textContent = item.description || '';
-      headEl.style.opacity = '1';
-      descEl.style.opacity = '1';
+      fadeEls.forEach(el => el.style.opacity = '1');
     }, 250);
   }
 
-  function startNewsCycle() {
-    newsIdx = 0;
-    renderNewsCard();
-    if (newsCycleTimer) clearInterval(newsCycleTimer);
-    newsCycleTimer = setInterval(() => {
-      newsIdx++;
-      renderNewsCard();
+  function startCardCycle() {
+    cardIdx = 0;
+    renderCard();
+    if (cardCycleTimer) clearInterval(cardCycleTimer);
+    cardCycleTimer = setInterval(() => {
+      cardIdx++;
+      renderCard();
     }, NEWS_CYCLE_MS);
   }
 
-  function stopNewsCycle() {
-    if (newsCycleTimer) { clearInterval(newsCycleTimer); newsCycleTimer = null; }
+  function showDeck(deck) {
+    if (deck === cardDeck) return;
+    cardDeck = deck;
+    document.getElementById('ss-news').style.display = deck ? 'block' : 'none';
+    if (deck) startCardCycle();
+    else if (cardCycleTimer) { clearInterval(cardCycleTimer); cardCycleTimer = null; }
   }
 
   function updateNewsItems(items) {
-    const list = items || [];
+    const list = (items || []).map(i => ({
+      image: i.image, kicker: 'BBC NEWS', title: i.title, description: i.description,
+    }));
     const changed = JSON.stringify(list.map(i => i.title)) !== JSON.stringify(newsItems.map(i => i.title));
     newsItems = list;
     // A fresh headline set mid-display restarts the cycle from the newest
     // story rather than waiting out whatever index it was on.
-    if (changed && newsMode) startNewsCycle();
+    if (changed && cardDeck === 'news') startCardCycle();
   }
 
-  // Single source of truth for which of logo / now-playing / news is shown.
-  // Spotify (handled above) always wins; news is a long-idle fallback under it.
+  // Wikipedia's "selected" On This Day events. Unlike the BBC feed this API
+  // sends CORS headers, so it's fetched straight from the page (like the
+  // weather) — refetched only when the date rolls over.
+  let otdDate = null;
+
+  function wikiImage(page) {
+    const orig = page.originalimage, thumb = page.thumbnail;
+    if (orig && orig.width <= 1280) return orig.source;
+    // Wikimedia only serves standard thumbnail widths (1024 is rejected).
+    if (thumb) return thumb.source.replace(/\/\d+px-/, '/1280px-');
+    return orig ? orig.source : null;
+  }
+
+  async function updateOnThisDay() {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    if (otdDate === mm + dd) return;
+    try {
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/feed/onthisday/selected/${mm}/${dd}`);
+      const d = await res.json();
+      const items = (d.selected || []).map(e => {
+        const pages = e.pages || [];
+        const page = pages.find(pg => pg.thumbnail || pg.originalimage) || pages[0] || {};
+        const year = e.year < 0 ? `${-e.year} BC` : e.year;
+        return { image: wikiImage(page), kicker: `ON THIS DAY · ${year}`, title: e.text, description: page.extract || '' };
+      });
+      // Shuffle so each visit doesn't always open on the most recent event.
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      otdItems = items;
+      otdDate = mm + dd;
+      if (cardDeck === 'onthisday') startCardCycle();
+    } catch (e) {}
+  }
+  updateOnThisDay();
+  setInterval(updateOnThisDay, 30 * 60 * 1000);
+
+  // The iframe only exists while a stream is on screen, so the video
+  // isn't streaming/decoding in the background the rest of the time.
+  // Muted, because Chromium blocks autoplay with sound.
+  function showStream(videoId) {
+    if (videoId === streamShown) return;
+    streamShown = videoId;
+    const el = document.getElementById('ss-stream');
+    el.innerHTML = '';
+    el.style.display = videoId ? 'block' : 'none';
+    if (!videoId) return;
+    const frame = document.createElement('iframe');
+    frame.allow = 'autoplay; encrypted-media';
+    frame.src = `https://www.youtube-nocookie.com/embed/${videoId}` +
+      '?autoplay=1&mute=1&controls=0&playsinline=1&rel=0&iv_load_policy=3&disablekb=1';
+    el.appendChild(frame);
+  }
+
+  // Single source of truth for which of logo / now-playing / card / stream is shown.
   function refreshScreensaverMode() {
     const logoEl = document.getElementById('ss-logo');
-    const newsEl = document.getElementById('ss-news');
-    if (!ssActive || spotifyActive) {
-      if (newsMode) { newsMode = false; stopNewsCycle(); }
-      newsEl.style.display = 'none';
-      if (ssActive) logoEl.style.display = spotifyActive ? 'none' : 'block';
-      return;
+    let deck = null, stream = null;
+    if (ssActive && !spotifyActive && streamVideos[controlMode]) {
+      stream = streamVideos[controlMode];
+    } else if (ssActive && !spotifyActive) {
+      const idleMs = staleSince !== null ? Date.now() - staleSince : 0;
+      if (controlMode === 'news' || controlMode === 'onthisday') deck = controlMode;
+      else if (controlMode === 'auto' && idleMs >= NEWS_STALE_MS) deck = 'news';
+      // Nothing loaded yet (offline, first boot) — fall back to the DVD bounce.
+      if (deck && !cardItemsFor(deck).length) deck = null;
     }
-    const idleMs = staleSince !== null ? Date.now() - staleSince : 0;
-    const wantNews = newsItems.length > 0 &&
-      (controlMode === 'news' || (controlMode === 'auto' && idleMs >= NEWS_STALE_MS));
-    if (wantNews && !newsMode) {
-      newsMode = true;
-      logoEl.style.display = 'none';
-      newsEl.style.display = 'block';
-      startNewsCycle();
-    } else if (!wantNews && newsMode) {
-      newsMode = false;
-      stopNewsCycle();
-      newsEl.style.display = 'none';
-      logoEl.style.display = 'block';
-    }
+    showDeck(deck);
+    showStream(stream);
+    if (ssActive) logoEl.style.display = (deck || stream || spotifyActive) ? 'none' : 'block';
   }
   // ─────────────────────────────────────────────────────────
 
@@ -977,9 +1077,7 @@
     img.src = IMG_NORMAL;
     img.className = '';
     img.style.display = 'block';
-    document.getElementById('ss-news').style.display = 'none';
-    newsMode = false;
-    stopNewsCycle();
+    showDeck(null);
     document.getElementById('screensaver').style.display = 'block';
     ssRaf = requestAnimationFrame(ssLoop);
     // Force marquee re-measurement now that the container is actually visible
@@ -995,9 +1093,8 @@
     document.getElementById('screensaver').style.display = 'none';
     if (ssRaf) { cancelAnimationFrame(ssRaf); ssRaf = null; }
     if (ssRevertTimer) { clearTimeout(ssRevertTimer); ssRevertTimer = null; }
-    newsMode = false;
-    stopNewsCycle();
-    document.getElementById('ss-news').style.display = 'none';
+    showDeck(null);
+    showStream(null);
   }
 
   function checkStale(session, weekly, homeActive) {
@@ -1012,30 +1109,36 @@
       // first load — just record, don't count
     } else if (session === prevSession && weekly === prevWeekly) {
       if (staleSince === null) staleSince = now;
-      if (controlMode === 'auto' && now - staleSince >= STALE_MS && !ssActive) startScreensaver(isAlert);
+      if (controlMode !== 'dashboard' && now - staleSince >= STALE_MS && !ssActive) startScreensaver(isAlert);
     } else {
       staleSince = null;
-      if (controlMode === 'auto' && ssActive) stopScreensaver();
+      if (ssActive) stopScreensaver();
     }
     prevSession = session;
     prevWeekly  = weekly;
   }
 
-  // Forced modes pin the screensaver on/off regardless of usage; switching
-  // back to 'auto' re-syncs with whatever the idle timer says right now.
+  // Picking an input from HomeKit shows it right away. After that the normal
+  // idle/wake logic applies to every mode but 'dashboard' (no screensaver):
+  // home Claude usage wakes to the dashboard, Spotify takes over while
+  // playing, and going idle returns to the chosen screensaver.
   function applyControlMode() {
-    const changed = controlMode !== prevControlMode;
+    if (prevControlMode === null || controlMode === prevControlMode) {
+      prevControlMode = controlMode;
+      return;
+    }
     prevControlMode = controlMode;
     if (controlMode === 'dashboard') {
       if (ssActive) stopScreensaver();
-    } else if (controlMode !== 'auto') {
-      if (!ssActive) startScreensaver();
-    } else if (changed) {
+    } else if (controlMode === 'auto') {
       const idle = staleSince !== null && Date.now() - staleSince >= STALE_MS;
       if (idle && !ssActive) startScreensaver();
       if (!idle && ssActive) stopScreensaver();
+    } else if (!ssActive) {
+      startScreensaver();
     }
   }
+
   // ─────────────────────────────────────────────────────────
 
   // Countdown with seconds
@@ -1111,13 +1214,11 @@
       try {
         const ctl = await (await fetch('/control?t=' + Date.now())).json();
         if (ctl.mode) controlMode = ctl.mode;
+        if (ctl.modes) streamVideos = Object.fromEntries(ctl.modes.filter(m => m.video).map(m => [m.id, m.video]));
       } catch (e) {}
       checkStale(d.session, d.weekly, homeActive);
       applyControlMode();
-      // Now-playing only takes over in auto or when explicitly chosen;
-      // forced DVD / News ignore Spotify.
-      const showSpotify = !!d.spotify_playing && (controlMode === 'auto' || controlMode === 'nowplaying');
-      updateNowPlaying(showSpotify, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
+      updateNowPlaying(!!d.spotify_playing, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
         d.spotify_progress_ms, d.spotify_duration_ms, !!d.spotify_is_podcast);
       refreshScreensaverMode();
 
