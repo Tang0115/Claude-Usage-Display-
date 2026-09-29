@@ -35,6 +35,7 @@ MODES = {
     'news':       'News',
     'nowplaying': 'Now Playing',
     'onthisday':  'On This Day',
+    'jev':        'Jev Trading',
 }
 
 # Live-stream screensavers: id -> (name in the Home app, YouTube video ID).

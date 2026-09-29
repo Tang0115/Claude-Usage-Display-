@@ -507,6 +507,36 @@
     pointer-events: none;
   }
 
+  /* JEV TRADING MODE — the jevlab bot's own status page from port 8081 */
+  #ss-jev {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #0b0f17;
+  }
+
+  #ss-jev iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  #ss-jev-offline {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 1.4em;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
   #ss-news-desc {
     font-size: 1.05em;
     line-height: 1.4;
@@ -547,6 +577,7 @@
     </div>
   </div>
   <div id="ss-stream"></div>
+  <div id="ss-jev"><div id="ss-jev-offline">Jev dashboard offline</div></div>
 </div>
 
 <!-- LEFT -->
@@ -758,6 +789,10 @@
   let controlMode = 'auto', prevControlMode = null;
   // Live-stream modes -> YouTube video ID, from /control (server.py STREAMS).
   let streamVideos = {}, streamShown = null;
+  // Jev Trading view: the separate jevlab service's page on port 8081.
+  const JEV_URL = 'http://localhost:8081/';
+  const JEV_HEALTH_MS = 10000;
+  let jevShown = false, jevHealthy = null, jevHealthTimer = null;
 
   function formatTime(ms) {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -1018,12 +1053,60 @@
     el.appendChild(frame);
   }
 
-  // Single source of truth for which of logo / now-playing / card / stream is shown.
+  // Like the stream player, the iframe only exists while the view is on
+  // screen. The 8081 service may not exist or may be down, so its /health
+  // is polled while the view is up: unreachable or ok:false shows an offline
+  // card instead of a broken frame. stale:true still shows the page, which
+  // has its own stale warning.
+  function renderJev(healthy) {
+    if (healthy === jevHealthy) return;
+    jevHealthy = healthy;
+    const el = document.getElementById('ss-jev');
+    const frame = el.querySelector('iframe');
+    if (healthy && !frame) {
+      const f = document.createElement('iframe');
+      f.src = JEV_URL;
+      el.appendChild(f);
+    } else if (!healthy && frame) {
+      frame.remove();
+    }
+    document.getElementById('ss-jev-offline').style.display = healthy ? 'none' : 'flex';
+  }
+
+  async function checkJevHealth() {
+    let healthy = false;
+    try {
+      const res = await fetch(JEV_URL + 'health', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+      healthy = res.ok && (await res.json()).ok === true;
+    } catch (e) {}
+    if (jevShown) renderJev(healthy);
+  }
+
+  function showJev(on) {
+    if (on === jevShown) return;
+    jevShown = on;
+    document.getElementById('ss-jev').style.display = on ? 'block' : 'none';
+    if (on) {
+      checkJevHealth();
+      jevHealthTimer = setInterval(checkJevHealth, JEV_HEALTH_MS);
+    } else {
+      clearInterval(jevHealthTimer);
+      jevHealthTimer = null;
+      const frame = document.querySelector('#ss-jev iframe');
+      if (frame) frame.remove();
+      document.getElementById('ss-jev-offline').style.display = 'none';
+      jevHealthy = null;
+    }
+  }
+
+  // Single source of truth for which of logo / now-playing / card / stream / jev is shown.
   function refreshScreensaverMode() {
     const logoEl = document.getElementById('ss-logo');
-    let deck = null, stream = null;
+    let deck = null, stream = null, jev = false;
     if (ssActive && !spotifyActive && streamVideos[controlMode]) {
       stream = streamVideos[controlMode];
+    } else if (ssActive && !spotifyActive && controlMode === 'jev') {
+      jev = true;
     } else if (ssActive && !spotifyActive) {
       const idleMs = staleSince !== null ? Date.now() - staleSince : 0;
       if (controlMode === 'news' || controlMode === 'onthisday') deck = controlMode;
@@ -1033,7 +1116,8 @@
     }
     showDeck(deck);
     showStream(stream);
-    if (ssActive) logoEl.style.display = (deck || stream || spotifyActive) ? 'none' : 'block';
+    showJev(jev);
+    if (ssActive) logoEl.style.display = (deck || stream || jev || spotifyActive) ? 'none' : 'block';
   }
   // ─────────────────────────────────────────────────────────
 
@@ -1095,6 +1179,7 @@
     if (ssRevertTimer) { clearTimeout(ssRevertTimer); ssRevertTimer = null; }
     showDeck(null);
     showStream(null);
+    showJev(false);
   }
 
   function checkStale(session, weekly, homeActive) {
