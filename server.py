@@ -34,7 +34,6 @@ MODES = {
     'dvd':        'DVD Bounce',
     'news':       'News',
     'nowplaying': 'Now Playing',
-    'onthisday':  'On This Day',
     'jev':        'Jev Trading',
 }
 
