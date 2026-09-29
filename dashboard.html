@@ -705,6 +705,7 @@
   const SS_W = 1024, SS_H = 600, SS_SIZE = 160;
   const STALE_MS = 150000; // no usage change for this long before screensaver triggers
   const NEWS_STALE_MS = 30 * 60 * 1000; // no usage change for this long before DVD bounce hands off to the news card
+  const HOME_ACTIVE_MS = 5 * 60 * 1000; // a usage change only counts if one of my machines pinged /heartbeat this recently
   const NEWS_CYCLE_MS = 20000; // how long each headline stays up while cycling
 
   let ssActive = false, ssRaf = null;
@@ -995,10 +996,15 @@
     document.getElementById('ss-news').style.display = 'none';
   }
 
-  function checkStale(session, weekly) {
+  function checkStale(session, weekly, homeActive) {
     const isAlert = session >= 80 || weekly >= 80;
     const now = Date.now();
-    if (prevSession === null) {
+    const changed = prevSession !== null && (session !== prevSession || weekly !== prevWeekly);
+    if (changed && !homeActive) {
+      // Usage moved but none of my machines are active (friend / me away from
+      // home) — ignore it: no wake, and the idle timer keeps running.
+      if (staleSince === null) staleSince = now;
+    } else if (prevSession === null) {
       // first load — just record, don't count
     } else if (session === prevSession && weekly === prevWeekly) {
       if (staleSince === null) staleSince = now;
@@ -1077,7 +1083,12 @@
       updateLogo(d.session >= 80 || d.weekly >= 80);
       updateMainSpotify(!!d.spotify_playing);
       updateNewsItems(d.news_items);
-      checkStale(d.session, d.weekly);
+      let homeActive = false;
+      try {
+        const hb = await (await fetch('/heartbeat_age?t=' + Date.now())).json();
+        homeActive = hb.age !== null && hb.age * 1000 < HOME_ACTIVE_MS;
+      } catch (e) {}
+      checkStale(d.session, d.weekly, homeActive);
       updateNowPlaying(!!d.spotify_playing, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
         d.spotify_progress_ms, d.spotify_duration_ms, !!d.spotify_is_podcast);
       refreshScreensaverMode();

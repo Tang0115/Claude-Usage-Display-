@@ -17,6 +17,7 @@ A Raspberry Pi desk dashboard that shows your Claude Code usage in real time —
 - **Weather widget** — auto-detects the Pi's location via IP geolocation and shows current temperature (°C) with daily low/high, weather icon, and condition using the Open-Meteo API (free, no key needed). Updates every 10 minutes
 - **Pi system stats** — displays live CPU %, RAM %, and CPU temperature pulled from `usage.json` and updated every 15 seconds
 - **Spotify now playing** — while the screensaver is active, shows album art on the left and track name / album name / artist on the right, with a live progress bar. Track and album names marquee-scroll if they're too long to fit on one line. The background dynamically recolors per song, sampled from the album art itself (darkened/desaturated for readability) with a soft vignette, and falls back to the plain black DVD-bounce screensaver when nothing's playing. Also works for podcast episodes and Spotify DJ sessions — for episodes, the layout adapts since podcasts have no artist: the middle album line is dropped and the show name takes its place in the artist slot instead (Spotify no longer returns a usable publisher field). Only shows up when playback is active on an allow-listed Spotify Connect device (e.g. your computers) — other devices (like a car's built-in Spotify) are treated as idle, so a long drive doesn't hammer the API or show up on the dashboard. Polled every 1 second while something's playing on an allowed device (backing off to every 20 seconds while idle, and further still if Spotify itself returns a rate-limit response) for near-instant track-change detection without hammering Spotify's API — decoupled from the slower Claude usage poll so it never affects your Claude rate-limit quota. Also swaps the mascot to a headphones image on the main (non-screensaver) view whenever something's playing. Optional — everything above still works without it
+- **Home-only wake** — usage changes only wake the dashboard from the screensaver if one of your own machines pinged the Pi's `/heartbeat` endpoint in the last 5 minutes, so a friend sharing the account (or you using Claude away from home) doesn't wake it. See "Home-only wake" below
 - Launches automatically on boot
 
 ## Hardware
@@ -116,6 +117,21 @@ sudo reboot
 ```
 
 The dashboard will launch automatically on every boot.
+
+## Home-only wake
+
+The usage API is account-wide, so it can't say which device caused a change. Instead, add a Claude Code hook on each of your machines (`~/.claude/settings.json`) that pings the Pi's `server.py`; use `localhost` as `HOST` on the Pi itself:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "curl -s -m 2 http://HOST:8080/heartbeat >/dev/null 2>&1 || true"}]}],
+    "Stop":             [{"hooks": [{"type": "command", "command": "curl -s -m 2 http://HOST:8080/heartbeat >/dev/null 2>&1 || true"}]}]
+  }
+}
+```
+
+`server.py` keeps the last heartbeat time in memory and serves its age at `/heartbeat_age`; `dashboard.html` ignores usage changes (no wake, idle timer keeps running) unless that age is under `HOME_ACTIVE_MS` (5 min). The endpoint is unauthenticated, so anyone on your LAN could wake the display. Away from home the ping fails silently.
 
 ## How it works
 
