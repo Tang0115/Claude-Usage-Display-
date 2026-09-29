@@ -715,6 +715,9 @@
   let spotifyActive = false;
   let spotifyProgressMs = 0, spotifyDurationMs = 0, spotifyFetchTime = 0;
   let newsItems = [], newsIdx = 0, newsCycleTimer = null, newsMode = false;
+  // Set from HomeKit via server.py's /control: 'auto' runs the idle/wake
+  // logic below; 'dashboard' / 'dvd' / 'news' / 'nowplaying' force that view.
+  let controlMode = 'auto', prevControlMode = 'auto';
 
   function formatTime(ms) {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -918,7 +921,8 @@
       return;
     }
     const idleMs = staleSince !== null ? Date.now() - staleSince : 0;
-    const wantNews = idleMs >= NEWS_STALE_MS && newsItems.length > 0;
+    const wantNews = newsItems.length > 0 &&
+      (controlMode === 'news' || (controlMode === 'auto' && idleMs >= NEWS_STALE_MS));
     if (wantNews && !newsMode) {
       newsMode = true;
       logoEl.style.display = 'none';
@@ -1008,13 +1012,29 @@
       // first load — just record, don't count
     } else if (session === prevSession && weekly === prevWeekly) {
       if (staleSince === null) staleSince = now;
-      if (now - staleSince >= STALE_MS && !ssActive) startScreensaver(isAlert);
+      if (controlMode === 'auto' && now - staleSince >= STALE_MS && !ssActive) startScreensaver(isAlert);
     } else {
       staleSince = null;
-      if (ssActive) stopScreensaver();
+      if (controlMode === 'auto' && ssActive) stopScreensaver();
     }
     prevSession = session;
     prevWeekly  = weekly;
+  }
+
+  // Forced modes pin the screensaver on/off regardless of usage; switching
+  // back to 'auto' re-syncs with whatever the idle timer says right now.
+  function applyControlMode() {
+    const changed = controlMode !== prevControlMode;
+    prevControlMode = controlMode;
+    if (controlMode === 'dashboard') {
+      if (ssActive) stopScreensaver();
+    } else if (controlMode !== 'auto') {
+      if (!ssActive) startScreensaver();
+    } else if (changed) {
+      const idle = staleSince !== null && Date.now() - staleSince >= STALE_MS;
+      if (idle && !ssActive) startScreensaver();
+      if (!idle && ssActive) stopScreensaver();
+    }
   }
   // ─────────────────────────────────────────────────────────
 
@@ -1088,8 +1108,16 @@
         const hb = await (await fetch('/heartbeat_age?t=' + Date.now())).json();
         homeActive = hb.age !== null && hb.age * 1000 < HOME_ACTIVE_MS;
       } catch (e) {}
+      try {
+        const ctl = await (await fetch('/control?t=' + Date.now())).json();
+        if (ctl.mode) controlMode = ctl.mode;
+      } catch (e) {}
       checkStale(d.session, d.weekly, homeActive);
-      updateNowPlaying(!!d.spotify_playing, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
+      applyControlMode();
+      // Now-playing only takes over in auto or when explicitly chosen;
+      // forced DVD / News ignore Spotify.
+      const showSpotify = !!d.spotify_playing && (controlMode === 'auto' || controlMode === 'nowplaying');
+      updateNowPlaying(showSpotify, d.spotify_track, d.spotify_album, d.spotify_artist, d.spotify_album_art,
         d.spotify_progress_ms, d.spotify_duration_ms, !!d.spotify_is_podcast);
       refreshScreensaverMode();
 

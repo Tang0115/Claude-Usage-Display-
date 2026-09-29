@@ -1,0 +1,13 @@
+{
+  "name": "homebridge-clawd-dash",
+  "displayName": "Clawd Dash",
+  "version": "1.1.0",
+  "description": "Exposes the Clawd Dash Pi dashboard to HomeKit as a TV: power toggles the display, inputs pick the screensaver.",
+  "main": "index.js",
+  "license": "MIT",
+  "keywords": ["homebridge-plugin"],
+  "engines": {
+    "homebridge": "^1.8.0 || ^2.0.0",
+    "node": ">=18"
+  }
+}

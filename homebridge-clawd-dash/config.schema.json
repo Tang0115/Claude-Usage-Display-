@@ -1,0 +1,13 @@
+{
+  "pluginAlias": "ClawdDash",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": { "title": "Name", "type": "string", "default": "Clawd Dash", "required": true },
+      "url": { "title": "Dashboard server URL", "type": "string", "default": "http://localhost:8080" },
+      "pollInterval": { "title": "Poll interval (seconds)", "type": "integer", "default": 5, "minimum": 1 }
+    }
+  }
+}
